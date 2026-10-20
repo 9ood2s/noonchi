@@ -4,6 +4,24 @@
 
 각 설치는 **본인의 DB·API 계정·도메인**을 사용합니다. 기존 운영자의 키나 회원 데이터는 제공하지 않습니다.
 
+## 기술 스택
+
+버전은 현재 `package-lock.json` 기준입니다. 설치는 `npm ci`를 사용합니다.
+
+| 역할 | 구성 |
+|---|---|
+| 실행·패키지 관리 | Node.js 22 이상 · npm / package-lock |
+| 웹·서버 API | Next.js 16.3.8 App Router · React / React DOM 19.2.8 · Route Handlers · SSG/ISR |
+| 언어 | TypeScript 6.0.3 · JavaScript ESM |
+| UI | Tailwind CSS 4.3.3 · @tailwindcss/postcss 4.3.3 · lucide-react 1.33.0 |
+| DB·인증·파일 | Supabase JS 2.112.3 / SSR 0.12.4 · PostgreSQL 17(로컬 기준) · Auth · 비공개 Storage |
+| 지도·주소·경로 | NAVER Web Dynamic Map / Directions 5 · Kakao Local · Google OAuth(Supabase Auth 경유) |
+| 학교 자료 수집 | NEIS · 학교알리미 API · NAVER Geocoding — 포함 자료로 실행할 때는 수집 키 불필요 |
+| 개발·검증 | ESLint 9.39.5 / eslint-config-next 16.3.8 · Node 셀프체크 · 로컬 DB용 Docker / Supabase CLI |
+| 원문 처리 | Poppler(`pdftotext` 등) · `unzip` — 원문 판독·자료 갱신에 사용 |
+
+Vercel은 선택 배포처입니다. NAVER 로그인과 대중교통 길찾기는 현재 비활성 상태입니다.
+
 ## 시작 방식 고르기
 
 | 목적 | DB·계정 준비 | 실행 명령 |
@@ -13,7 +31,18 @@
 
 `local:dev`는 DB 주소·키를 현재 로컬 스택의 값으로 자동 주입합니다. `.env.local`에 클라우드 DB 값을 넣어도 이 명령은 **로컬 DB를 사용**합니다. 지도·주소·길찾기 키는 별도로 본인의 값을 설정해야 합니다.
 
-**네트워크에 공개하기 전:** 2026-10-20 새 복제본의 `npm ci`·`npm audit`에서 보안 권고 10건(high 8, critical 2)이 확인됐습니다. Next.js 등 실행 시 사용하는 의존성도 포함됩니다. 설치·로컬 실행 성공과 보안 업데이트 완료는 별개입니다. 공개 운영 전 `npm audit` 결과에 따라 의존성을 업데이트하고 재검증해야 합니다. 이번 설치 안내 보완에서는 패키지 버전을 변경하지 않았습니다. [Next.js 공식 보안 권고](https://github.com/vercel/next.js/security/advisories)를 참고하세요.
+**의존성 보안 업데이트:** 2026-10-20 Next.js와 간접 의존성을 갱신했습니다. 새 설치의 `npm audit`·`npm audit --omit=dev`에서 취약점 0건을 확인했습니다. 확인 당시 npm 권고 데이터 기준이므로 배포 전 다시 검사하세요. [변경 내용과 검증 범위](docs/DEPENDENCY_SECURITY.md)를 참고하세요.
+
+## Supabase나 Vercel을 쓰지 않는 경우
+
+| 원하는 방식 | 현재 지원 범위와 할 일 |
+|---|---|
+| Vercel 없이 운영 | Node.js 서버에서 `npm run build` → `npm start`. 본인 HTTPS 도메인·환경변수·프록시를 설정. [별도 서버 배포](docs/SELF_HOSTING.md#vercel-없이-배포) |
+| Supabase Cloud 가입 없이 로컬 확인 | Docker / Supabase CLI로 실행. 이 방식도 로컬에서 오픈소스 Supabase를 사용함 |
+| Supabase Cloud 없이 독립 운영 | 본인 서버에 Supabase를 자체 호스팅하고 그 API URL·키를 연결. [자체 운영 절차](docs/SELF_HOSTING.md#supabase-cloud-없이-자체-운영) |
+| Supabase 자체를 완전히 제외 | 현재 대체 백엔드가 없어 별도 개발 필요. PostgreSQL 접속 주소만 바꿔서는 실행되지 않음. [대체해야 할 부분](docs/SELF_HOSTING.md#supabase를-완전히-제외하려면) |
+
+전체 앱에는 로그인·서버 API·비공개 첨부 저장소가 필요해 정적 파일 호스팅만으로 동일하게 운영할 수 없습니다. DB 없이 계산 규칙만 활용하려면 `lib/transfer.mjs`·`lib/transfer-incheon.mjs`·`lib/commute.mjs`를 별도 앱에 재사용할 수 있습니다. 이 모듈의 `npm run selftest`는 Supabase 연결 없이 실행합니다.
 
 ## 로컬에서 처음 실행하기
 
@@ -107,9 +136,13 @@ npm run local:dev
 2. `.env.local` 또는 새 배포 프로젝트에 같은 프로젝트의 `NEXT_PUBLIC_SUPABASE_URL`·`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`·`SUPABASE_SERVICE_ROLE_KEY`를 설정합니다. 필요한 지도·주소·길찾기 키도 본인 값을 넣습니다.
 3. Supabase Auth에서 Anonymous sign-ins·manual identity linking·Google 제공자를 활성화합니다. Google의 redirect URI는 **본인 Supabase 프로젝트의** `/auth/v1/callback`, Supabase의 앱 복귀 주소는 **본인 앱의** `/auth/callback`입니다. [Google 설정 절차](docs/SELF_HOSTING.md#google-로그인)를 따릅니다.
 4. `NEXT_PUBLIC_SITE_URL`, Supabase Site URL·허용 복귀 URL, NAVER Maps 허용 URL을 실제 접속 주소와 맞춥니다. 본인 클라우드 DB를 보며 로컬에서 개발할 때는 앱 주소를 `http://localhost:3000`으로 두고 `npm run dev`를 사용합니다.
-5. 공개 배포 전 의존성 보안 권고를 해결·검증하고, 아래 빌드와 실제 화면 확인을 진행합니다.
+5. 공개 배포 전 아래 의존성 검사·빌드와 실제 화면 확인을 진행합니다.
 
 ```sh
+npm ci
+npm audit
+npm audit --omit=dev
+npm ls
 npm run checks
 npm run selftest:deployment
 npm run build
@@ -132,7 +165,7 @@ Vercel 등에는 **별도 새 배포 프로젝트**를 만들고 본인 환경�
 | Google provider disabled·redirect mismatch | 사용하는 DB가 로컬/클라우드 중 어느 쪽인지 확인하고 해당 Auth 제공자·두 callback 주소 설정 |
 | 경로 열쇠 없음·로그인 필요 | Directions 키와 정식 로그인 확인. Kakao 키만으로 자동차 길찾기는 동작하지 않음 |
 
-`npm ci`의 peer 경고와 실제 설치 실패는 종료 코드로 구분하되, 보안 권고는 별도로 `npm audit`에서 확인합니다. `npm audit fix --force`는 호환되지 않는 버전 변경도 할 수 있으므로 권고 내용을 확인하지 않고 실행하지 않습니다.
+게시된 `package-lock.json`을 사용해 `npm ci`로 설치합니다. 린트 플러그인의 호환 범위에 맞춘 ESLint 9에는 유지보수 종료 경고가 있습니다. 알려진 취약점 검사 결과와는 별개이며, 상위 플러그인의 ESLint 10 지원 후 함께 갱신해야 합니다. 자세한 내용은 [의존성 검증 기록](docs/DEPENDENCY_SECURITY.md)을 참고하세요. 설치 실패는 종료 코드로, 보안 권고는 `npm audit`으로 확인합니다. `npm audit fix --force`는 호환되지 않는 버전 변경도 할 수 있으므로 권고 내용을 확인하지 않고 실행하지 않습니다.
 
 ## 지역 확장과 검증
 

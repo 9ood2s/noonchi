@@ -65,6 +65,9 @@ NAVER Maps 콘솔에서 본인 애플리케이션을 만들고 Web Dynamic Map�
 
 ```sh
 npm ci
+npm audit
+npm audit --omit=dev
+npm ls
 npm run checks
 npm run selftest:deployment
 npm run build
@@ -75,13 +78,88 @@ Vercel 등에서도 같은 변수를 **새 배포 프로젝트**에 설정한다
 
 첫 배포에서는 지도 표시, 학교 상세, 손님 관심학교 저장, Google 로그인 후 관심학교 유지, 주소 검색, 자동차 경로 조회, 새로고침 후 유지 여부를 실제 화면에서 확인한다. 외부 API와 OAuth는 발급한 본인 계정으로 확인해야 한다. 테스트 명령 통과만으로 공급자 연결이 확인되는 것은 아니다.
 
+## Vercel 없이 배포
+
+Vercel 계정·CLI·배포 프로젝트는 필수가 아니다. 현재 `build`·`start`는 표준 Next.js 명령이며 Vercel 전용 SDK·Blob·DB를 사용하지 않는다. [Next.js 공식 Node.js 배포 안내](https://nextjs.org/docs/app/getting-started/deploying#nodejs-server)의 방식으로 본인 VPS·학교 서버·Node.js 실행을 지원하는 호스트에서 운영할 수 있다.
+
+1. Node.js 22 이상과 npm이 있는 **본인의 별도 서버**에 이 공개 저장소를 복제한다. DB는 본인 Supabase Cloud 또는 아래 자체 호스팅 Supabase를 먼저 준비한다.
+2. 저장소 루트에 `.env.local`을 만들거나 호스트의 비밀 환경변수 기능을 사용한다. `NEXT_PUBLIC_SITE_URL`은 본인 실제 HTTPS origin, DB URL·키는 본인 DB로 설정한다. 빌드 중 학교 페이지가 DB를 읽으므로 빌드 서버에서도 DB API에 접근할 수 있어야 한다.
+3. 아래 명령으로 설치·검사·빌드한 뒤 서버를 실행한다. `127.0.0.1` 바인딩은 같은 머신의 프록시 뒤에서 운영하는 예다.
+
+```sh
+npm ci
+npm audit
+npm audit --omit=dev
+npm ls
+npm run checks
+npm run selftest:deployment
+npm run build
+npm start -- --hostname 127.0.0.1 --port 3000
+```
+
+4. nginx·Caddy 등의 리버스 프록시에서 본인 HTTPS 도메인을 `127.0.0.1:3000`에 연결한다. 원래 Host·전달 프로토콜이 앱에 전달되도록 설정하고, 프로세스는 systemd 또는 호스트의 서비스 관리 기능으로 재기동되게 한다. [공식 자체 호스팅 안내](https://nextjs.org/docs/app/guides/self-hosting#reverse-proxy)를 따른다. 이 저장소에는 프록시·TLS 인증서·서비스 관리자 설정이 포함되어 있지 않다.
+5. 앱 origin·DB Auth 허용 복귀 URL·Google callback·지도 허용 URL을 실제 도메인에 맞춘 뒤 실제 화면에서 로그인·저장·파일·경로를 확인한다. `VERCEL_URL`을 흉내 내어 설정할 필요는 없다. `NEXT_PUBLIC_SITE_URL`을 명시하면 된다.
+
+업데이트할 때는 새 릴리스 디렉터리에서 같은 환경변수로 설치·빌드한 다음 서비스 관리자로 교체한다. `NEXT_PUBLIC_*`를 바꾸면 재빌드가 필요하다. 컨테이너 호스트에서도 Node 서버 방식으로 배포할 수 있지만, 현재 저장소에 앱용 Dockerfile이나 `output: "standalone"` 설정은 없으므로 해당 구성은 직접 추가·검증해야 한다.
+
+GitHub Pages·S3 같은 정적 파일 호스팅으로 전체 앱을 그대로 옮길 수는 없다. 이 앱은 Route Handlers·쿠키 세션·OAuth callback·서버에서 보호하는 키를 사용한다. `output: "export"`를 추가하는 것만으로 이 기능들이 대체되지 않는다. 여러 앱 인스턴스로 확장할 때의 공유 캐시·배포 버전 조정도 위 Next.js 자체 호스팅 문서를 따른다.
+
+## Supabase Cloud 없이 자체 운영
+
+관리형 Supabase 가입 없이도 오픈소스 Supabase를 본인 서버에서 운영할 수 있다. **Supabase 자체를 사용하지 않는 구성과는 다르다.** `npm run local:up`의 CLI 스택은 개발·시험용이며, 그 포트를 그대로 외부에 공개해 운영하지 않는다. [공식 설명](https://supabase.com/docs/guides/self-hosting#not-the-same-as-local-development)을 참고한다.
+
+1. 이 저장소와 분리된 운영 디렉터리에 [공식 Docker Compose 설치 절차](https://supabase.com/docs/guides/self-hosting/docker)로 새 Supabase 인스턴스를 준비한다. 이 저장소는 해당 운영 Compose 구성을 제공하지 않는다. API gateway·PostgREST·Auth·PostgreSQL·Storage가 필요하며, 본인이 키 생성·HTTPS·백업·복구·업데이트를 관리한다. 공식 예제의 비밀값을 그대로 쓰지 않는다.
+2. [공식 HTTPS·URL 설정](https://supabase.com/docs/guides/self-hosting/self-hosted-proxy-https#step-1-update-environment-variables)에 따라 앱과 DB API 주소를 나눈다. 아래 주소는 예약된 예시 도메인이므로 본인 주소로 교체한다.
+
+| 설정 위치 | 예시 |
+|---|---|
+| Supabase 서버 `SUPABASE_PUBLIC_URL` | `https://api.example.org` |
+| Supabase 서버 `API_EXTERNAL_URL` | `https://api.example.org/auth/v1` |
+| Supabase 서버 `SITE_URL` | `https://app.example.org` |
+| 앱 `NEXT_PUBLIC_SITE_URL` | `https://app.example.org` |
+| 앱 `NEXT_PUBLIC_SUPABASE_URL` | `https://api.example.org` — PostgreSQL 접속 문자열이 아님 |
+| 앱 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | 자체 서버의 publishable key 또는 호환되는 anon key |
+| 앱 서버 `SUPABASE_SERVICE_ROLE_KEY` | 같은 서버의 secret 또는 service_role key |
+
+브라우저와 빌드·실행 서버가 모두 API URL에 접근할 수 있어야 한다. 앱 환경변수에 Docker 내부 서비스 이름이나 PostgreSQL URL을 넣지 않는다. Supabase 서버 비밀 파일과 앱 비밀 파일은 각각 관리한다.
+
+3. Supabase 기본 `auth`·`storage` 스키마와 서비스 준비가 끝난 **새 DB**에 이 저장소의 마이그레이션을 적용한다. `NOONCHI_SELF_HOST_DB_URL`은 본인의 비밀 관리 기능이나 터미널 환경에 설정한 새 DB 접속 문자열이다. 비밀번호 등은 URL 인코딩한다. 여기서는 Cloud 로그인·`supabase link`가 필요하지 않다.
+
+```sh
+supabase db push --db-url "$NOONCHI_SELF_HOST_DB_URL" --dry-run
+supabase db push --db-url "$NOONCHI_SELF_HOST_DB_URL"
+```
+
+이 명령은 해당 DB를 변경하므로 주소와 dry-run 결과를 확인한다. 운영에는 합성 사용자·평가 seed를 넣는 `--include-seed`를 추가하지 않는다. [공식 db push 문서](https://supabase.com/docs/reference/cli/supabase-db-push)를 따른다.
+
+4. [자체 호스팅 OAuth 안내](https://supabase.com/docs/guides/self-hosting/self-hosted-oauth)에 따라 Google 제공자를 Auth 컨테이너에 설정한다. 관리형 대시보드 설정을 바꾸는 방식과 다르다. 손님 계정을 위해 `ENABLE_ANONYMOUS_USERS=true`, 정식 로그인으로 연결하려면 Auth 환경의 `GOTRUE_SECURITY_MANUAL_LINKING_ENABLED: "true"`가 필요하다. 새 변수를 `.env`에 적기만 하지 말고 Compose의 `auth.environment`에 실제 전달한다. 제공자·비밀 변경 뒤 Auth 서비스를 재생성해 반영한다. [identity linking 설명](https://supabase.com/docs/guides/auth/auth-identity-linking)을 참고한다.
+5. Google에는 `https://api.example.org/auth/v1/callback`, Supabase Auth 허용 복귀 주소에는 `https://app.example.org/auth/callback`을 등록한다. 앱은 위의 Vercel 없는 Node 서버 방식으로 배포할 수 있다. 지도·주소·경로 키는 계속 본인 값을 사용한다.
+
+이 저장소에서 실행 검증한 DB 경로는 CLI의 격리된 로컬 스택이다. 운영용 자체 호스팅 Compose 설치·실제 Google OAuth를 검증 완료한 배포 템플릿으로 제공하는 것은 아니다. 첫 운영 전에는 빈 DB 마이그레이션, 손님 관심학교 → Google 계정 연결 → 새로고침, 제보 첨부의 본인·관리자 권한, 통근 사용량 제한과 백업 복구를 본인 설치에서 확인한다.
+
+## Supabase를 완전히 제외하려면
+
+현재 일반 PostgreSQL·다른 인증·다른 파일 저장소용 어댑터는 구현되어 있지 않다. `NEXT_PUBLIC_SUPABASE_URL`을 PostgreSQL 주소로 바꾸거나 SDK만 삭제해서는 동작하지 않는다. 다음은 **설치 옵션이 아닌 별도 개발 범위**다.
+
+| 영역 | 현재 접점 | 대체 작업 |
+|---|---|---|
+| 공개 자료·집계·학교 페이지 빌드 | `lib/supabase.ts`, `lib/schools.ts`, `lib/ratings.ts`, `app/map/*` | SDK의 HTTP 쿼리를 본인 서버의 데이터 접근 계층·API로 교체 |
+| 로그인·세션 | `lib/auth/*`, `middleware.ts`, `app/auth/callback/route.ts` | 손님 계정, Google OAuth, 익명 계정 연결, 쿠키 갱신·로그아웃을 함께 구현 |
+| 관심목록·평가·프로필·저장 경로 | 브라우저 SDK 호출과 DB RLS | 인증된 자체 API와 소유권 검사로 교체. 클라이언트에서 DB 관리자 키 사용 금지 |
+| SQL 권한·업무 규칙 | `supabase/migrations`의 `auth.users`, `auth.uid()`, `auth.jwt()`, RLS·트리거·RPC | 사용자 ID·권한 모델에 맞게 외래키·정책·함수·집계를 이식 |
+| 비공개 제보 첨부 | `components/report-dialog.tsx`, `storage.objects` 정책 | 업로드·삭제·서명 다운로드·본인/관리자 권한·25MB 제한을 다른 저장소에 구현 |
+
+`claim_commute`의 원자적 사용량 제한과 `set_home_school`·`clear_home_school`·`nickname_check` RPC도 유지·대체해야 한다. 본인 데이터만 접근할 수 있다는 권한 검증을 서버에서 재현해야 한다. 현재 앱에는 Supabase Realtime 구독이나 Edge Functions 호출이 없으므로 해당 런타임의 별도 대체부터 시작할 필요는 없다.
+
+DB 없이 계산 규칙만 필요하다면 `lib/transfer.mjs`·`lib/transfer-incheon.mjs`·`lib/commute.mjs`를 본인 앱에 재사용할 수 있다. `npm ci` 후 `npm run selftest`로 DB 연결 없이 계산·통근 계산 테스트를 실행한다. 전체 웹앱의 DB 없는 실행 모드는 제공하지 않는다.
+
 ## 로컬 개발
 
-Node.js 22 이상, 실행 중인 Docker, `supabase` 명령이 필요하다. 기존 `supabase/config.toml`이 있으므로 `supabase init`을 다시 할 필요는 없다. README의 `local:up` → `local:reset` → `local:dev` 순서를 따른다. 앱 포트는 3000, 로컬 Supabase API 포트는 55321이며 `local:dev`가 DB 주소·키를 자동 주입한다. 지도·주소·길찾기 키는 본인의 개발용 값을 `.env.local`에 설정한다.
+Node.js 22 이상, 실행 중인 Docker, `supabase` 명령이 필요하다. 기존 `supabase/config.toml`이 있으므로 `supabase init`을 다시 할 필요는 없다. README의 `local:up` → `local:dev` 순서를 따른다. 첫 기동에는 마이그레이션과 seed가 자동 적용되므로 `local:reset`은 필요하지 않다. 앱 포트는 3000, 로컬 Supabase API 포트는 55321이며 `local:dev`가 DB 주소·키를 자동 주입한다. 지도·주소·길찾기 키는 본인의 개발용 값을 `.env.local`에 설정한다.
 
 로컬 Auth는 손님 로그인을 활성화하지만 외부 OAuth 제공자를 기본 설정하지 않는다. Google 로그인까지 확인하려면 [공식 local Google 설정](https://supabase.com/docs/guides/auth/social-login/auth-google#local-development)에 따라 본인 제공자를 `supabase/config.toml`에 설정하고 비밀을 CLI의 환경변수로 전달한다. 이 프로젝트의 로컬 Supabase callback은 `http://127.0.0.1:55321/auth/v1/callback`이며, Auth의 허용 복귀 URL에도 `http://localhost:3000/auth/callback`을 추가한다. 호스팅 프로젝트에서만 OAuth를 설정해도 로컬에는 적용되지 않는다. 비밀을 TOML에 직접 적거나 커밋하지 않는다.
 
-`local:reset`은 합성 테스트 사용자를 포함한 로컬 DB 초기화다. 개인 자료가 있다면 먼저 백업하며, 원격 초기화용 `--linked`·`--db-url` 옵션을 추가하지 않는다. `local:dev`의 자동 키 주입은 `build`에는 적용되지 않으므로 로컬 DB로 빌드할 때도 자신의 로컬 URL·공개 키를 별도로 설정한다.
+`local:reset`은 합성 테스트 사용자를 포함한 로컬 DB 초기화다. 개인 자료가 있다면 먼저 백업하며, 원격 초기화용 `--linked`·`--db-url` 옵션을 추가하지 않는다. `local:dev`의 자동 키 주입은 `build`에는 적용되지 않으므로 로컬 DB로 빌드할 때도 자신의 로컬 URL·공개 키·서버 키를 별도로 설정한다.
 
 ## 학교 원자료 갱신
 

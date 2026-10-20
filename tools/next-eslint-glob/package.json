@@ -1,0 +1,13 @@
+{
+  "name": "@noonchi/next-eslint-glob",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Scoped globSync adapter for @next/eslint-plugin-next root directory discovery",
+  "license": "MIT",
+  "type": "commonjs",
+  "main": "index.cjs",
+  "dependencies": {
+    "picomatch": "4.0.5",
+    "tinyglobby": "0.2.17"
+  }
+}
