@@ -1,0 +1,512 @@
+{
+  "meta": {
+    "시도": "경기",
+    "학교급": "초등",
+    "from": 2026,
+    "to": 2027,
+    "생성": "scripts/diff-personnel-areas.mjs"
+  },
+  "counts": {
+    "from": 1369,
+    "to": 1373,
+    "moved": 32,
+    "opened": 19,
+    "gone": 15
+  },
+  "moved": [
+    {
+      "city": "과천",
+      "school": "과천율목",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "양주",
+      "school": "천보",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "양주",
+      "school": "연푸른",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "양주",
+      "school": "회암",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "양주",
+      "school": "옥정호수",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "평택",
+      "school": "해창",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "평택",
+      "school": "민세",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "평택",
+      "school": "평택영신",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "고양",
+      "school": "덕이",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "고양",
+      "school": "지효",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "고양",
+      "school": "고양장항",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "남양주",
+      "school": "퇴계원",
+      "from": "갑",
+      "to": "을",
+      "fromArea": "갑",
+      "fromGrade": null,
+      "toArea": "을",
+      "toGrade": null
+    },
+    {
+      "city": "남양주",
+      "school": "도제원",
+      "from": "갑",
+      "to": "을",
+      "fromArea": "갑",
+      "fromGrade": null,
+      "toArea": "을",
+      "toGrade": null
+    },
+    {
+      "city": "화성",
+      "school": "내리숲",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "오산",
+      "school": "오산",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "오산",
+      "school": "가수",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "오산",
+      "school": "세마",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "오산",
+      "school": "세담",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "파주",
+      "school": "별하람",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "파주",
+      "school": "운정해오름",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "광주",
+      "school": "고산하늘",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "광주",
+      "school": "능평",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "광주",
+      "school": "고산별빛",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "용인",
+      "school": "보라",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "용인",
+      "school": "지석",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "용인",
+      "school": "성지",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "용인",
+      "school": "고진",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    },
+    {
+      "city": "김포",
+      "school": "석정",
+      "from": "병-라",
+      "to": "병-나",
+      "fromArea": "병",
+      "fromGrade": "라",
+      "toArea": "병",
+      "toGrade": "나"
+    },
+    {
+      "city": "김포",
+      "school": "월곶",
+      "from": "병-라",
+      "to": "병-나",
+      "fromArea": "병",
+      "fromGrade": "라",
+      "toArea": "병",
+      "toGrade": "나"
+    },
+    {
+      "city": "김포",
+      "school": "하성",
+      "from": "병-라",
+      "to": "병-나",
+      "fromArea": "병",
+      "fromGrade": "라",
+      "toArea": "병",
+      "toGrade": "나"
+    },
+    {
+      "city": "김포",
+      "school": "옹정",
+      "from": "병-라",
+      "to": "병-나",
+      "fromArea": "병",
+      "fromGrade": "라",
+      "toArea": "병",
+      "toGrade": "나"
+    },
+    {
+      "city": "시흥",
+      "school": "배곧라라",
+      "from": "을",
+      "to": "갑",
+      "fromArea": "을",
+      "fromGrade": null,
+      "toArea": "갑",
+      "toGrade": null
+    }
+  ],
+  "opened": [
+    {
+      "city": "수원",
+      "school": "수원동신",
+      "area": "갑"
+    },
+    {
+      "city": "수원",
+      "school": "수원금곡",
+      "area": "갑"
+    },
+    {
+      "city": "성남",
+      "school": "위례해솔",
+      "area": "을"
+    },
+    {
+      "city": "성남",
+      "school": "금토",
+      "area": "을"
+    },
+    {
+      "city": "양주",
+      "school": "회천새봄",
+      "area": "을"
+    },
+    {
+      "city": "평택",
+      "school": "평안",
+      "area": "을"
+    },
+    {
+      "city": "의왕",
+      "school": "의왕푸른",
+      "area": "을"
+    },
+    {
+      "city": "의왕",
+      "school": "월암",
+      "area": "을"
+    },
+    {
+      "city": "화성",
+      "school": "서봉",
+      "area": "을"
+    },
+    {
+      "city": "화성",
+      "school": "새동",
+      "area": "을"
+    },
+    {
+      "city": "화성",
+      "school": "다올",
+      "area": "을"
+    },
+    {
+      "city": "화성",
+      "school": "봉담2-1",
+      "area": "을"
+    },
+    {
+      "city": "파주",
+      "school": "숲노을",
+      "area": "을"
+    },
+    {
+      "city": "파주",
+      "school": "물향기",
+      "area": "을"
+    },
+    {
+      "city": "파주",
+      "school": "운정중앙",
+      "area": "을"
+    },
+    {
+      "city": "이천",
+      "school": "이천중리",
+      "area": "을"
+    },
+    {
+      "city": "용인",
+      "school": "용인솔빛",
+      "area": "을"
+    },
+    {
+      "city": "용인",
+      "school": "남동1",
+      "area": "을"
+    },
+    {
+      "city": "시흥",
+      "school": "장현1",
+      "area": "을"
+    }
+  ],
+  "gone": [
+    {
+      "city": "수원",
+      "school": "동신",
+      "area": "갑"
+    },
+    {
+      "city": "수원",
+      "school": "금곡",
+      "area": "갑"
+    },
+    {
+      "city": "성남",
+      "school": "복정1",
+      "area": "을"
+    },
+    {
+      "city": "양주",
+      "school": "회천3",
+      "area": "을"
+    },
+    {
+      "city": "평택",
+      "school": "도일1",
+      "area": "을"
+    },
+    {
+      "city": "의왕",
+      "school": "고천2",
+      "area": "을"
+    },
+    {
+      "city": "화성",
+      "school": "하길3",
+      "area": "을"
+    },
+    {
+      "city": "화성",
+      "school": "남양2",
+      "area": "을"
+    },
+    {
+      "city": "화성",
+      "school": "동탄23",
+      "area": "을"
+    },
+    {
+      "city": "파주",
+      "school": "운정7",
+      "area": "을"
+    },
+    {
+      "city": "파주",
+      "school": "운정5",
+      "area": "을"
+    },
+    {
+      "city": "파주",
+      "school": "운정4",
+      "area": "을"
+    },
+    {
+      "city": "포천",
+      "school": "포천삼정",
+      "area": "병-라"
+    },
+    {
+      "city": "이천",
+      "school": "중리",
+      "area": "을"
+    },
+    {
+      "city": "용인",
+      "school": "역삼",
+      "area": "을"
+    }
+  ]
+}

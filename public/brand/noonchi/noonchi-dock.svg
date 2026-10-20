@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-labelledby="title desc">
+  <title id="title">noonchi dock icon</title>
+  <desc id="desc">Single-color line icon for a 23-pixel navigation rail.</desc>
+  <defs>
+    <clipPath id="left-eye"><circle cx="7.7" cy="12" r="3.1"/></clipPath>
+    <clipPath id="right-eye"><circle cx="16.3" cy="12" r="3.1"/></clipPath>
+  </defs>
+  <rect x="1.5" y="6" width="21" height="12" rx="6"/>
+  <circle cx="7.7" cy="12" r="3.1"/>
+  <circle cx="16.3" cy="12" r="3.1"/>
+  <circle cx="9.6" cy="12" r="1.8" fill="currentColor" stroke="none" clip-path="url(#left-eye)"/>
+  <circle cx="18.2" cy="12" r="1.8" fill="currentColor" stroke="none" clip-path="url(#right-eye)"/>
+</svg>

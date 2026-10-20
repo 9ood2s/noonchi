@@ -1,0 +1,65 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# 판독기가 만드는 중간 파일은 커밋한다 (data/derived) — 원자료가 바뀌면 무엇이 달라졌는지 보려고
+
+# 판독 결과에서 다시 만들 수 있는 것 (npm run areas:sql)
+/supabase/seed/
+
+# Public template only; never commit real environment files.
+!.env.example
+
+# Personal tool grants / machine caches / database backups
+/.claude/
+/.codex/
+/.agents/
+/.aws/
+__pycache__/
+*.py[cod]
+*.key
+*.p12
+*.pfx
+*.jks
+*.sqlite*
+*.dump
+/backups/
+/private-audit/

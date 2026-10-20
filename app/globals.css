@@ -1,0 +1,743 @@
+@import "tailwindcss";
+
+@theme {
+  /* 한글 서비스라 라틴 전용 웹폰트를 받지 않는다. 폰에서 폰트 내려받는 시간이 그대로 첫 화면 지연이다. */
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+}
+
+/**
+ * ⛔ **`color-scheme` 을 반드시 적는다** (2026-08-23 사장님 — 「os와 브라우저 차이가 있는거 같아」).
+ *    이게 없으면 **브라우저가 우리 색을 제멋대로 뒤집는다** —
+ *      · 안드로이드 크롬의 「자동 어둡게(Auto Dark Theme)」
+ *      · 삼성 인터넷의 「웹페이지 어둡게」
+ *    둘 다 「이 사이트는 어두운 화면을 모르는 것 같으니 내가 만들어 주겠다」고 나서는 기능이다.
+ *    우리는 어두운 화면을 이미 만들어 뒀는데, **말해 주지 않으면 모른다.**
+ *    이 한 줄이 그 말이다 — 「밝은 것도 어두운 것도 내가 갖고 있다」.
+ * ⛔ 뒤집힌 화면에서는 유리가 특히 망가진다. `backdrop-filter` 로 뒤를 흐려 놓은 위에
+ *    브라우저가 또 반전을 걸어서, 흐림도 색도 우리가 정한 것과 딴판이 된다.
+ * ⛔ 밝기 토글(`data-theme`)에 맞춰 셋을 다 적는다 — 토큰과 같은 방식이다.
+ *    하나라도 빠지면 그 상태에서만 브라우저가 다시 나선다.
+ */
+:root {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #16202e;
+  --muted: #5b6875;
+  --line: #e3e8ef;
+  --surface: #f7f9fc;
+  --up: #d3212c;      /* 오름 — 한국 관례로 빨강 */
+  --down: #1554cf;    /* 내림 — 파랑 */
+  --ink-strip: #0f1723;
+  /**
+   * 워드마크(`noonchi`)의 글자색. ⛔ **`--foreground` 를 쓰지 않는다** —
+   * 어두운 화면의 글자색은 #e6ebf2(살짝 죽인 흰색)인데, 브랜드 정본은 **순백**이다.
+   * 로고만 그 값을 따로 갖는다(`public/brand/noonchi/noonchi-wordmark-dark.svg`).
+   */
+  --brand-ink: #16202e;
+  /* 경로 도착점(학교) 주황. 흰 아이콘 대비 5.8:1 */
+  --route-goal: #c2571f;
+
+  /* ── 유리(리퀴드 글라스) — 시안 M 에서 확정한 값 (docs/DESIGN.md §12-52) ──────────
+     ⛔ key 와 key-fill 을 하나로 쓰지 않는다. key 는 선·글자·그래프에 쓰는 파랑이고,
+        key-fill 은 **흰 글자를 얹는 채움**이라 더 진해야 한다. 하나로 쓰면 고른 알약과
+        주 단추의 글자가 대비 3:1 아래로 내려간다(실측으로 걸렸다).
+     ⛔ 유리를 두 겹으로 칠하지 않는다. 흰 채움 위에 흰 그라데이션을 또 얹으면 실효 불투명이
+        80% 를 넘어 「유리」가 아니라 흰 판이 된다. 뒤 지도의 형태가 통째로 사라진다.
+     ⛔ 흐림을 13px 위로 올리지 않는다. 그보다 세면 폭 3~5px 짜리 도로가 지워져 색만 통과한다. */
+  --key: #2f6fd0;
+  --key-fill: rgb(31 86 171 / 0.94);
+  --ink2: #33475d;
+  --ink3: #455d78;
+
+  /**
+   * ⛔ **0.30 → 0.55 → 0.66 으로 올렸다** (2026-08-23 사장님 — 「지도가 바뀌니까 가독성이 확 바뀌네.
+   *    글라스 불투명도 한번 조정해야할듯. 이전 투과율이 딱 좋았는데」).
+   *    값을 바꾼 적이 없는데 느낌이 달라진 까닭은 **뒤에 깔린 지도가 바뀌었기 때문**이다 —
+   *    VWorld 는 옅은 파스텔 한 겹이었고 네이버는 글자·아이콘이 빽빽하다.
+   *    같은 0.30 이 VWorld 위에서는 「유리」였는데 네이버 위에서는 「흐린 지도」가 된다.
+   * ⛔ ⭐ **흐림에 가독성을 기대지 마라 — 「유리」는 사파리에서만 유리다**(§12-118).
+   *    **안드로이드 크로미엄은 지도를 못 흐린다.** 흐림 자체는 한다 — DOM 위에서는 흔적도 없이
+   *    뭉갠다. 그런데 **네이버 지도의 WebGL 캔버스만** 못 읽는다. 별도 화면 층에 올라가기 때문이다.
+   *    2026-08-23 에 재 봤다 — 안드로이드에서는 알약 뒤 지도 글자가 **또렷하게 그대로 읽힌다.**
+   *    ⛔ 알려진 우회(`opacity: .999`)도 붙여 봤는데 그대로였다. 고칠 방법이 없다.
+   *    ⛔ 그러니 **이 값(불투명도)만으로 읽히는지**를 기준으로 잡는다. 흐림은 덤이다.
+   * ⛔ 이것이 **「검은 보더라인」의 정체이기도 하다** — 알약 속이 거의 안 보이니
+   *    남는 것이 그림자 윤곽선뿐이라, 속 빈 검은 테두리처럼 읽힌다.
+   */
+  --glass-tint: rgb(255 255 255 / 0.66);
+  --glass-tint-pop: rgb(255 255 255 / 0.84);
+  --glass-tint-modal: rgb(255 255 255 / 0.91);
+  --glass-sheen: linear-gradient(155deg, rgb(255 255 255 / 0.26), rgb(255 255 255 / 0.08) 60%, rgb(255 255 255 / 0.04));
+  --glass-edge: rgb(255 255 255 / 0.78);
+  /**
+   * ⛔ **진한 링(`0 0 0 1px`)을 뺐다** (2026-08-23 사장님 — 「필터영역에 검은 계열의 보더라인?
+   *    거슬려」). 전에는 「흰 지도 위에서는 흰 테두리가 안 보이니 진한 링을 하나 더 두른다」고
+   *    적어 두었는데, **속이 진해진 지금은 그 링이 할 일이 없다.** 남으면 윤곽선만 도드라진다.
+   * ⛔ 대신 **떨어뜨리는 그림자를 조금 키웠다** — 링이 하던 「바탕과 갈라 보이게 하는」 일을
+   *    그림자가 받는다. 윤곽선이 아니라 깊이로 띄운다.
+   */
+  /**
+   * ⛔ **그림자는 겹을 여러 장 얇게 쌓는다** (2026-08-23 사장님 — 「필터영역의 그림자의
+   *    경계선이 부드럽지 않음」). 전에는 두 겹이었는데, 겹이 적으면 **끝이 뚝 끊긴다** —
+   *    흐림 반경 안에서 진하기가 한 번에 떨어져 테두리처럼 보인다.
+   *    네 겹으로 나누고 **흐림 반경을 2 → 6 → 16 → 40 으로 벌리면** 진하기가 층층이 겹쳐
+   *    끝이 어디인지 눈에 안 잡힌다.
+   * ⛔ **음수 퍼짐(-16px 같은 것)을 크게 주지 않는다.** 그림자를 안으로 당겨 **경계를 또렷하게
+   *    만드는** 것이 바로 그 값이다. 진하기는 알파로 낮춘다.
+   */
+  --glass-shadow: 0 4px 10px -2px rgb(14 34 62 / 0.07), 0 12px 26px -6px rgb(14 34 62 / 0.11),
+    0 30px 58px -12px rgb(14 34 62 / 0.19), inset 0 1px 0 rgb(255 255 255 / 0.55);
+  --glass-shadow-2: 0 3px 8px -2px rgb(14 34 62 / 0.07), 0 9px 20px -5px rgb(14 34 62 / 0.1),
+    0 20px 40px -10px rgb(14 34 62 / 0.16), inset 0 1px 0 rgb(255 255 255 / 0.5);
+  /* 작은 알약용 — 위에서 **`0 0 0 1px` 링을 뺀 것**이 차이다 */
+  --glass-edge-2: rgb(255 255 255 / 0.38);
+  /**
+   * ⛔ **바짝 붙은 겹(`0 1px 2px`)을 뺐다** (2026-08-23 사장님 — 「아직도 필터쪽의 그림자가
+   *    경계로 보임」). 흐림 반경이 2px 인 겹은 아무리 옅어도 **가장자리에 선 하나를 긋는다** —
+   *    그것이 「그림자」가 아니라 「테두리」로 읽히는 정체다. 겹을 여러 장 쌓아도 그 한 장이
+   *    남아 있으면 소용이 없다.
+   * ⛔ **안쪽 흰 줄(`inset`)도 0.9 → 0.4 로 낮췄다.** 위 모서리에 그은 밝은 1px 선인데,
+   *    바깥 테두리와 겹쳐 **두 줄짜리 윤곽**이 된다.
+   * 이제 가장 바짝 붙은 겹의 흐림이 6px 이라, 어디서 끝나는지가 눈에 안 잡힌다.
+   */
+  --glass-shadow-3: 0 2px 6px -1px rgb(14 34 62 / 0.06), 0 6px 14px -3px rgb(14 34 62 / 0.09),
+    0 14px 28px -8px rgb(14 34 62 / 0.13), inset 0 1px 0 rgb(255 255 255 / 0.4);
+  --glass-blur: 13px;
+  --glass-blur-2: 10px;
+
+  --fill: rgb(14 34 62 / 0.065);
+  --fill-2: rgb(14 34 62 / 0.11);
+  --divider: rgb(14 34 62 / 0.14);
+  --pin-edge: rgb(255 255 255 / 0.92);
+  --badge: rgb(78 90 103 / 0.94);
+
+  /* 지도가 없는 화면(계산기·로그인·홈)의 바닥. 유리 뒤에 아무것도 없으면 유리가 안 보인다 */
+  --ambient: radial-gradient(760px 620px at 4% 2%, rgb(94 152 226 / 0.28), rgb(0 0 0 / 0) 64%),
+    radial-gradient(680px 560px at 96% 18%, rgb(74 178 176 / 0.20), rgb(0 0 0 / 0) 64%),
+    radial-gradient(820px 620px at 50% 104%, rgb(120 164 214 / 0.22), rgb(0 0 0 / 0) 66%);
+  --ambient-base: #eef3f7;
+
+  --radius-chip: 11px;
+  --radius-card: 15px;
+  --radius-panel: 26px;
+}
+
+/* ⛔ 세 갈래다 — 「자동」(운영체제 설정), 「밝게」, 「어둡게」.
+   자동은 data-theme 을 아예 안 붙인다. 밝게/어둡게는 붙여서 운영체제 설정을 이긴다.
+   그래서 어두운 규칙을 두 번 쓴다: 자동일 때(:not([data-theme="light"]))와 대놓고 고른 때. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --background: #10151b;
+    --foreground: #e6ebf2;
+    --muted: #94a1b2;
+    --line: #263040;
+    --surface: #171d25;
+    --up: #ff6b6b;
+    --down: #6ea8ff;
+    --ink-strip: #0b1017;
+    --brand-ink: #ffffff;
+  /* 어두운 판에서는 한 칸 밝게 — 짙은 바탕에서 #c2571f 는 가라앉는다 */
+  --route-goal: #e0752f;
+
+    --key: #5d9bea;
+    --key-fill: rgb(37 94 182 / 0.92);
+    --ink2: #ccdae6;
+    --ink3: #b8c9d8;
+
+    --glass-tint: rgb(10 19 30 / 0.68);
+    --glass-tint-pop: rgb(10 19 30 / 0.86);
+    --glass-tint-modal: rgb(10 19 30 / 0.92);
+    --glass-sheen: linear-gradient(155deg, rgb(255 255 255 / 0.09), rgb(255 255 255 / 0.025) 60%, rgb(255 255 255 / 0.01));
+    --glass-edge: rgb(255 255 255 / 0.14);
+    --glass-shadow: 0 4px 10px -2px rgb(0 0 0 / 0.3), 0 14px 28px -6px rgb(0 0 0 / 0.36), 0 34px 66px -14px rgb(0 0 0 / 0.46), inset 0 1px 0 rgb(255 255 255 / 0.16);
+    --glass-shadow-2: 0 3px 8px -2px rgb(0 0 0 / 0.28), 0 10px 22px -5px rgb(0 0 0 / 0.34), 0 24px 44px -10px rgb(0 0 0 / 0.42), inset 0 1px 0 rgb(255 255 255 / 0.14);
+    --glass-edge-2: rgb(255 255 255 / 0.09);
+    --glass-shadow-3: 0 2px 6px -1px rgb(0 0 0 / 0.26), 0 7px 16px -3px rgb(0 0 0 / 0.3), 0 16px 32px -8px rgb(0 0 0 / 0.38), inset 0 1px 0 rgb(255 255 255 / 0.1);
+
+    --fill: rgb(255 255 255 / 0.055);
+    --fill-2: rgb(255 255 255 / 0.12);
+    --divider: rgb(255 255 255 / 0.1);
+    --pin-edge: rgb(255 255 255 / 0.66);
+    --badge: rgb(88 101 114 / 0.94);
+
+    --ambient: radial-gradient(760px 620px at 4% 2%, rgb(74 140 226 / 0.34), rgb(0 0 0 / 0) 64%),
+      radial-gradient(680px 560px at 96% 18%, rgb(26 132 136 / 0.26), rgb(0 0 0 / 0) 64%),
+      radial-gradient(820px 620px at 50% 104%, rgb(47 158 147 / 0.18), rgb(0 0 0 / 0) 66%);
+    --ambient-base: #0a141f;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #10151b;
+  --foreground: #e6ebf2;
+  --muted: #94a1b2;
+  --line: #263040;
+  --surface: #171d25;
+  --up: #ff6b6b;
+  --down: #6ea8ff;
+  --ink-strip: #0b1017;
+  --brand-ink: #ffffff;
+  /* 어두운 판에서는 한 칸 밝게 — 짙은 바탕에서 #c2571f 는 가라앉는다 */
+  --route-goal: #e0752f;
+
+  --key: #5d9bea;
+  --key-fill: rgb(37 94 182 / 0.92);
+  --ink2: #ccdae6;
+  --ink3: #b8c9d8;
+
+  --glass-tint: rgb(10 19 30 / 0.68);
+  --glass-tint-pop: rgb(10 19 30 / 0.86);
+  --glass-tint-modal: rgb(10 19 30 / 0.92);
+  --glass-sheen: linear-gradient(155deg, rgb(255 255 255 / 0.09), rgb(255 255 255 / 0.025) 60%, rgb(255 255 255 / 0.01));
+  --glass-edge: rgb(255 255 255 / 0.14);
+  --glass-shadow: 0 4px 10px -2px rgb(0 0 0 / 0.3), 0 14px 28px -6px rgb(0 0 0 / 0.36), 0 34px 66px -14px rgb(0 0 0 / 0.46), inset 0 1px 0 rgb(255 255 255 / 0.16);
+  --glass-shadow-2: 0 3px 8px -2px rgb(0 0 0 / 0.28), 0 10px 22px -5px rgb(0 0 0 / 0.34), 0 24px 44px -10px rgb(0 0 0 / 0.42), inset 0 1px 0 rgb(255 255 255 / 0.14);
+    --glass-edge-2: rgb(255 255 255 / 0.09);
+    --glass-shadow-3: 0 2px 6px -1px rgb(0 0 0 / 0.26), 0 7px 16px -3px rgb(0 0 0 / 0.3), 0 16px 32px -8px rgb(0 0 0 / 0.38), inset 0 1px 0 rgb(255 255 255 / 0.1);
+
+  --fill: rgb(255 255 255 / 0.055);
+  --fill-2: rgb(255 255 255 / 0.12);
+  --divider: rgb(255 255 255 / 0.1);
+  --pin-edge: rgb(255 255 255 / 0.66);
+  --badge: rgb(88 101 114 / 0.94);
+
+  --ambient: radial-gradient(760px 620px at 4% 2%, rgb(74 140 226 / 0.34), rgb(0 0 0 / 0) 64%),
+    radial-gradient(680px 560px at 96% 18%, rgb(26 132 136 / 0.26), rgb(0 0 0 / 0) 64%),
+    radial-gradient(820px 620px at 50% 104%, rgb(47 158 147 / 0.18), rgb(0 0 0 / 0) 66%);
+  --ambient-base: #0a141f;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-surface: var(--surface);
+  --color-up: var(--up);
+  --color-down: var(--down);
+  --color-ink-strip: var(--ink-strip);
+
+  --color-key: var(--key);
+  --color-ink2: var(--ink2);
+  --color-ink3: var(--ink3);
+  --color-fill: var(--fill);
+  --color-fill-2: var(--fill-2);
+  --color-divider: var(--divider);
+
+  --radius-chip: var(--radius-chip);
+  --radius-card: var(--radius-card);
+  --radius-panel: var(--radius-panel);
+}
+
+/* 바닥 — 지도가 없는 화면에서도 유리가 유리로 보이게 한다.
+   ⛔ body 가 아니라 html 에 칠한다. body 에 칠하면 화면 높이만큼만 칠해져
+      스크롤할 때 아래가 끊긴다. */
+html {
+  background-color: var(--ambient-base);
+  background-image: var(--ambient);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+body {
+  color: var(--foreground);
+}
+
+/* ── 유리 ──────────────────────────────────────────────────────────────────
+   ⛔ 글자를 유리로 만들지 않는다. 유리는 틀에만 쓰고 글자·숫자는 불투명 고대비로 둔다.
+      맥 지도앱이 그렇게 한다 — 사이드바는 유리인데 글자는 불투명 흰색이다.
+   ⛔ 지도 말풍선(.pin)에는 걸지 않는다. 1,600개가 지도를 끌 때마다 매 프레임 다시 칠해진다. */
+/**
+ * ⛔ ⭐ **`-webkit-backdrop-filter` 를 먼저, 표준 `backdrop-filter` 를 나중에 적는다.**
+ *    2026-08-23 에 이 순서가 뒤집혀 있어서 **크롬에서 유리가 통째로 안 먹었다.**
+ *    둘을 같은 값으로 나란히 적으면 **CSS 압축기가 하나로 합치면서 마지막 것만 남긴다.**
+ *    표준을 먼저 적어 두면 `-webkit-` 만 남는데, **사파리는 그걸 알아듣고 크롬은 못 알아듣는다.**
+ *    그래서 사파리에서만 유리로 보였다 — 지도도 캔버스도 안드로이드도 죄가 없었다.
+ *    ⛔ **배포된 CSS 를 직접 받아 보고서야 알았다.** 소스에는 둘 다 적혀 있었다.
+ *       유리가 한쪽 브라우저에서만 안 되면 **먼저 배포된 CSS 를 열어 본다**(`DESIGN.md §12-119`).
+ */
+.glass {
+  background-color: var(--glass-tint);
+  background-image: var(--glass-sheen);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(155%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(155%);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-shadow);
+}
+/* 작은 것 — 알약·조작 단추·범례. 크기가 작을수록 얇게 흐린다 */
+/* ⛔ **테두리를 두 겹 두르지 않는다** (2026-08-23 사장님 — 「버튼들 뒤의 미세한 경계가 거슬림」).
+   전에는 흰 테두리 1px 과 그림자 안의 진한 링 1px 이 **함께** 둘려서, 옅은 지도 위에서
+   알약마다 가는 윤곽선이 도드라졌다. 큰 판(.glass)은 그 링이 있어야 바탕에서 떨어져 보이지만,
+   작은 알약은 그림자만으로 충분하다.
+   ⛔ 테두리를 아주 없애지는 않는다 — 흰 지도 위에서 알약이 바탕에 녹는다. 옅게(0.38) 남긴다. */
+.glass-2 {
+  background-color: var(--glass-tint);
+  background-image: var(--glass-sheen);
+  -webkit-backdrop-filter: blur(var(--glass-blur-2)) saturate(155%);
+  backdrop-filter: blur(var(--glass-blur-2)) saturate(155%);
+  border: 1px solid var(--glass-edge-2);
+  box-shadow: var(--glass-shadow-3);
+}
+/* 대화상자 — **글자 위에 뜬다.** 지도 위에 뜨는 판보다 한 단계 더 진하고 더 흐리다.
+   ⛔ 뒤가 지도면 0.84 로 읽히지만, 뒤가 **글자**면 16% 만 비쳐도 글자 위에 글자가 겹쳐 읽기 나쁘다.
+      실제로 설문 대화상자 뒤로 학교 상세의 「인사구역 · 갑 · 지역가산…」 이 그대로 읽혔다.
+   ⛔ 그래도 단색으로 덮지 않는다(불투명도 100은 안 쓴다) — 흐림을 키워 뒤를 뭉갠다. */
+.glass-modal {
+  background-color: var(--glass-tint-modal);
+  -webkit-backdrop-filter: blur(26px) saturate(150%);
+  backdrop-filter: blur(26px) saturate(150%);
+}
+
+/* 눌러서 펼치는 판 — **누른 자리에서 자라난다.**
+   ⛔ 화면 한가운데서 뜨거나 그냥 나타나면 무엇을 눌러서 뜬 것인지 안 보인다.
+      누른 단추의 왼쪽 위를 기준점(transform-origin)으로 두고 거기서 커진다.
+   ⛔ 자리(width·height)를 늘리지 않고 transform 으로 키운다 — 자리를 늘리면 매 프레임 배치를 다시 잰다. */
+/* ⛔ 지도 위에 뜨는 판은 **더 진하다.** 얇은 유리(0.30)로 두면 지도 말풍선이 비쳐서 글자와 겹친다.
+   실제로 겹쳐 재 봤다 — 가장 어두운 말풍선(#16202e) 위에서 옅은 글자(--ink3) 대비가
+   0.30 에서는 2.6:1 이라 안 읽히고, 0.84 에서 4.7:1 이 된다.
+   ⛔ 그렇다고 단색으로 덮지 않는다. 뒤가 비치는 것이 이 화면의 뜻이다(불투명도 100은 안 쓴다).
+   ⛔ 진하기와 움직임은 **갈라 둔다.** 검색 결과 목록처럼 글자마다 나타났다 사라지는 것에
+      움직임을 붙이면 글자를 칠 때마다 화면이 튄다 — 진하기만 가져가고 움직임은 안 붙인다. */
+.glass-thick {
+  background-color: var(--glass-tint-pop);
+}
+
+/* 눌러서 펼치는 판 — **누른 자리에서 자라난다.** 누르는 동작 하나에 한 번만 돈다.
+   ⛔ 글자를 칠 때마다 다시 붙는 것에는 쓰지 않는다(마운트마다 애니메이션이 다시 돈다). */
+.pop {
+  transform-origin: top left;
+  animation: pop-in 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* 움직임을 줄이고 싶다는 설정을 존중한다 — 크기 변화를 빼고 옅게만 든다 */
+@media (prefers-reduced-motion: reduce) {
+  .pop {
+    animation: pop-fade 0.15s ease both;
+  }
+  @keyframes pop-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+/* 토스트 — 아래에서 올라온다. `.pop` 과 달리 **화면 아래 가운데**가 기준이다
+   (`components/toast.tsx` · `DESIGN.md §12-159`).
+   ⛔ 사라지는 애니메이션은 안 넣는다. 넣으려면 「사라지는 중」이라는 상태를 하나 더 들어야 하는데,
+      그 사이에 새 토스트가 오면 둘이 겹쳐 뜬다. */
+.toast-pop {
+  animation: toast-in 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast-pop {
+    animation: pop-fade 0.15s ease both;
+  }
+}
+
+/* 투명도를 끄고 싶다는 설정을 존중한다 — 흐림을 지우고 채운다 */
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-2 {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background-color: var(--background);
+  }
+}
+
+/* 상단 검색·필터 줄 — **선이 안 생기는 그림자**
+   (2026-08-23 사장님 — 「상단 필터에 그림자는 아예 없애버리면 좋겠음」 → 빼 보니
+   「묻히네... **그 줄로 경계가 딱 나뉘는게 거슬려서 그랬던 거거든. 그림자가 있긴해야겠다**」).
+
+   ⭐ **그림자가 「선」으로 보이는 조건은 둘이다.**
+     ① **흐림 반경이 작다**(2~4px). 그런 겹은 아무리 옅어도 가장자리에 선을 긋는다.
+     ② **아래로 밀린 거리가 흐림보다 훨씬 작다.** 그러면 그림자가 모양을 **빙 둘러싸서**
+        테두리처럼 보인다. 아래로 충분히 밀면 **밑에 깔린 그늘**로 읽힌다.
+   ⛔ **음수 퍼짐(`-8px` 같은 것)을 쓰지 않는다.** 그림자를 안으로 당겨 **끝을 또렷하게** 만든다.
+      옅게 하고 싶으면 알파를 낮춘다.
+   ⛔ 안쪽 흰 줄(`inset`)도 안 쓴다. 위 모서리에 그은 1px 선이라 바깥 테두리와 겹쳐
+      **두 줄짜리 윤곽**이 된다 — 사장님이 「줄로 경계가 나뉜다」고 하신 그것이다. */
+/* ⛔ **그림자가 20px 안에 들어와야 한다.** 필터 줄이 자기 여백(20px) 안에서만 안 잘리는데,
+      그보다 멀리 뻗으면 그 끝이 다시 일직선으로 잘려 사각형이 보인다.
+      아래로 가장 멀리 가는 겹이 5+14 = 19px 이다. */
+.top-bar .glass-2 {
+  box-shadow:
+    0 2px 8px rgb(14 34 62 / 0.06),
+    0 5px 14px rgb(14 34 62 / 0.09);
+}
+:root[data-theme="dark"] .top-bar .glass-2 {
+  box-shadow:
+    0 2px 8px rgb(0 0 0 / 0.26),
+    0 5px 14px rgb(0 0 0 / 0.36);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .top-bar .glass-2 {
+    box-shadow:
+      0 2px 8px rgb(0 0 0 / 0.26),
+      0 5px 14px rgb(0 0 0 / 0.36);
+  }
+}
+
+/* ⛔ **필터 줄 끝을 `mask` 로 흐리지 않는다 — 해봤고 유리가 죽었다**(2026-08-23).
+   `mask` 를 씌운 칸은 **backdrop root** 가 되어, 그 안의 `backdrop-filter` 가 바깥(지도)을
+   못 읽는다. 아침에 크롬에서 유리가 통째로 죽었던 것과 같은 뿌리다(§12-119).
+   「넘칠 때만 씌우면 되지 않나」도 안 된다 — **넘칠 때가 바로 유리가 필요한 때**다.
+   대신 **화살표 단추**로 밀 수 있다는 것을 알린다(§12-123). */
+
+/* 끝을 모르는 진행 막대 — 「몇 퍼센트」를 지어내지 않고 **돌고 있다**만 말한다.
+   ⛔ 움직임을 줄이겠다는 설정을 존중한다 — 그때는 흐르지 않고 은은하게 밝기만 오간다. */
+.bar-run {
+  animation: bar-slide 1.15s ease-in-out infinite;
+}
+@keyframes bar-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bar-run {
+    width: 100%;
+    animation: bar-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes bar-pulse {
+    0%,
+    100% {
+      opacity: 0.35;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+}
+
+/* 경로 양 끝 — 집과 학교 (2026-08-23 사장님 — 「그냥 아이콘만 동그랗게 띄워주면 좋을 거 같은데」)
+   ⛔ **알약이 아니라 동그라미다.** 알약에 아이콘을 넣는 것은 한 번 해보고 물렀다(§12-113) —
+      이름·값과 세로로 쌓여 한 알약이 세 줄이 됐다. 여기는 글자가 없으니 동그라미가 맞다.
+   ⛔ 흰 테두리를 두른다. 지도가 밝든 어둡든 동그라미가 바탕에서 떨어져 보여야 한다.
+   ⛔ 손가락을 안 먹는다 — 그 아래 학교 말풍선을 눌러야 한다. */
+.route-end {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 2px solid #fff;
+  color: #fff;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.34);
+  pointer-events: none;
+}
+.route-end svg {
+  width: 16px;
+  height: 16px;
+}
+/* 집은 파랑(경로선과 같은 색), **학교는 주황**이다.
+   ⛔ 학교를 검정으로 두지 않는다(2026-08-23 사장님 — 「학교는 컬러가 블랙이라 색을 바꾸면 좋겠음」).
+      검정은 ① 지도 글자·도로와 같은 색이라 아이콘이 아니라 얼룩으로 읽히고
+      ② 집(파랑)과 나란히 놓였을 때 **한 벌로 안 보인다.**
+   ⭐ 주황을 고른 까닭 — 파랑의 맞은편 색이라 **어느 쪽이 집이고 어느 쪽이 학교인지 한눈에 갈린다.**
+      지도 길찾기가 출발·도착을 가르는 방식과 같다. 방향을 바꾸면 두 색이 자리를 맞바꾸므로
+      **색만 보고 방향을 안다**(선은 한 색이라 그것만으로는 모른다).
+   ⛔ 급지·구역 말풍선 색(lib/map.ts PALETTE)에는 주황이 없다 — 겹쳐 읽힐 값이 없다.
+   ⚠️ 대중교통을 다시 열면 `ROUTE_INK.기타`(#c2571f)와 같은 색이 된다. 그때 한 번 견줘 본다. */
+.route-end[aria-label="집"] { background: var(--key-fill); }
+.route-end[aria-label="학교"] { background: var(--route-goal); }
+
+/* ── 네이버 지도 말풍선 자리 맞추기 ────────────────────────────────────────
+   ⛔ **네이버는 말풍선의 왼쪽 위 모서리를 좌표에 놓는다.** MapLibre 는 `anchor` 를 받아
+      가운데·아래로 잡아 줬는데 네이버 HtmlIcon 의 `anchor` 는 **픽셀 숫자**라, 크기를
+      미리 모르는 HTML 말풍선에는 못 쓴다(글자 길이에 따라 폭이 달라진다).
+      그대로 두면 말풍선이 죄다 오른쪽 아래로 반 칸씩 밀린다 — **오류는 안 나고 조금씩 틀린다.**
+   그래서 말풍선이 **스스로 물러선다.** `transform` 은 그림뿐 아니라 손가락 판정도 함께
+   옮기므로, 보이는 자리와 눌리는 자리가 어긋나지 않는다(§11-4).
+   ⛔ `.pin:active { transform: scale(...) }` 가 이걸 덮어쓴다. 그래서 아래에서 둘을 겹쳐 적는다. */
+.nv-center { transform: translate(-50%, -50%); }
+.nv-bottom { transform: translate(-50%, -100%); }
+.pin.nv-center:active { transform: translate(-50%, -50%) scale(0.92); }
+.pin.nv-bottom:active { transform: translate(-50%, -100%) scale(0.92); }
+.pin.nv-center[data-on="1"]:active { transform: translate(-50%, -50%) scale(1.02); }
+.pin.nv-bottom[data-on="1"]:active { transform: translate(-50%, -100%) scale(1.02); }
+
+/* ── 지도 말풍선 ────────────────────────────────────────────────────────────
+   ⛔ MapLibre 의 글자 기능을 쓰지 않는다. 그걸 쓰면 한글·숫자 글리프 파일을
+      따로 내려받아야 하는데, 그건 사실상 웹폰트다(§13 — 받지 않기로 했다).
+      대신 말풍선을 HTML 로 얹어 시스템 폰트로 그린다.
+   ⛔ 손가락으로 누를 수 있어야 한다. 최소 높이를 28px 로 두고, 눌리는 영역을
+      말풍선 밖으로 넓히지 않는다(겹치면 옆 학교가 눌린다). */
+.pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1.5px solid var(--pin-edge);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.28);
+  transition: transform 0.12s ease;
+}
+.pin:active { transform: scale(0.92); }
+
+/**
+ * 고른 학교 — ⛔ **테두리로 알리지 않는다**(2026-08-23 사장님 「강조방식이 꼭 테두리여야만 함?」).
+ * 처음엔 검은 테두리였고(정적이고 칙칙했다), 그 다음엔 링 두 겹이었다. 둘 다 **덧그리는** 방식이다.
+ * 대신 셋을 한꺼번에 쓴다 —
+ *   ① **이름이 펴진다** — 확대하지 않아도 고른 순간 학교 이름이 나온다
+ *   ② **떠오른다** — 확대 + 그림자. 위로 뜬 것처럼 보인다
+ *   ③ **나머지가 물러난다** — 스포트라이트. 링을 안 그려도 어느 것이 골라졌는지 한눈에 보인다
+ */
+.pin[data-on="1"] {
+  z-index: 3;
+  transform: scale(1.1);
+  box-shadow: 0 12px 26px -6px rgb(14 34 62 / 0.55), 0 2px 6px rgb(0 0 0 / 0.3);
+}
+.pin[data-on="1"]:active { transform: scale(1.02); }
+
+/* ③ 스포트라이트 — 하나를 고르면 나머지는 물러난다.
+   ⛔ 지우지 않고 **흐리게만** 한다. 지우면 옆 학교와의 견줌이 사라진다.
+   ⛔ `pointer-events` 는 그대로 둔다 — 물러난 것도 눌러서 갈아탈 수 있어야 한다. */
+/* ⛔ **0.36 은 너무 셌다**(2026-08-23 사장님 — 「나머지 학교들의 블러 처리 강도가 너무 심해」).
+   물러나 있으라는 뜻이지 **없는 셈 치라는 뜻이 아니다** — 고른 학교 옆에 뭐가 있는지는
+   여전히 읽혀야 한다. 0.62 면 뒤로 물러나면서도 급지 색과 숫자가 읽힌다. */
+[data-picked="1"] .pin-anchor:not([data-on="1"]) { opacity: 0.62; }
+.pin-anchor { transition: opacity 0.16s ease; }
+
+/* ① 고른 것과 가까이 간 것만 이름을 편다.
+   ⛔ 이름 칸은 **늘 만들어 둔다.** 고를 때마다 말풍선을 다시 만들면 1,600개가 매번 다시 그려진다. */
+.pin > .pin-nm { display: none; }
+.pin-named > .pin-nm,
+.pin[data-on="1"] > .pin-nm { display: block; }
+.pin[data-on="1"] {
+  flex-direction: column;
+  gap: 1px;
+  min-width: 44px;
+  height: 34px;
+  padding: 0 7px;
+  border-radius: 10px;
+}
+
+/* 말풍선이 가리키는 점 — 알약 아래 꼬리와 점. 시안 M 이 그렇게 생겼다(`Mix` 아트보드).
+   ⛔ 이게 없으면 알약이 학교 **위에 떠 있기만** 하고 어디를 가리키는지 안 보인다.
+      2026-08-23 사장님 「학교 아이콘이 단조롭고」의 절반이 이것이다. */
+.pin-anchor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+.pin-stem {
+  width: 2px;
+  height: 7px;
+  background: var(--pin-edge);
+}
+.pin-dot {
+  width: 9px;
+  height: 9px;
+  margin-bottom: -4px;
+  border-radius: 999px;
+  border: 1.5px solid var(--pin-edge);
+  box-sizing: border-box;
+}
+/* 고른 것은 꼬리와 점도 키 컬러로 — 알약만 바뀌면 아래가 따로 논다 */
+.pin-anchor[data-on="1"] .pin-stem,
+.pin-anchor[data-on="1"] .pin-dot { border-color: var(--key); background: var(--key); }
+
+/* 필터로 건 값을 알약 안에 숫자로 — 패널을 안 열어도 지도에서 읽힌다
+   (2026-08-23 사장님). ⛔ 구역·급지는 **색**이 이미 말하므로 숫자에 자리를 내준다. */
+.pin-metric {
+  margin-left: 5px;
+  padding-left: 5px;
+  border-left: 1px solid rgb(255 255 255 / 0.42);
+  font-weight: 700;
+}
+.pin-city {
+  flex-direction: column;
+  gap: 1px;
+  min-width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  font-size: 11px;
+}
+.pin-city b { font-size: 13px; font-weight: 700; }
+.pin-city span { font-weight: 500; opacity: 0.85; }
+
+/* ── 말풍선 갈래별 생김새 ──────────────────────────────────────────────────
+   ⛔ **2026-08-23 에 이 다섯을 실수로 지웠다가 되살렸다.** MapLibre 를 걷어내면서
+      `.maplibregl-*` 규칙 132줄을 잘라냈는데, **그 사이에 끼어 있던 말풍선 규칙까지**
+      함께 잘려 나갔다. 화면에서는 「1명」 배지가 알약 없이 맨글자로 떠 있었고,
+      이름이 값과 붙어 「동백갑」처럼 한 덩어리로 읽혔다.
+   ⛔ **덩어리로 지울 때는 그 안에 무엇이 들어 있는지 먼저 센다.**
+      지울 범위에서 선택자 이름만 뽑아 보면 3초면 안다. */
+
+/* 가까이 갔을 때 — 이름 + 값 두 줄. 인사구역은 시·군이 통째로 같은 경우가 많아
+   확대하면 "을 을 을" 만 남는다. 그때는 이름이 있어야 학교를 가른다. */
+.pin-named {
+  flex-direction: column;
+  gap: 1px;
+  min-width: 44px;
+  height: 34px;
+  padding: 0 7px;
+  border-radius: 10px;
+}
+
+.pin .pin-nm { font-size: 10px; font-weight: 500; opacity: 0.88; }
+
+.pin-named b { font-size: 12px; font-weight: 700; }
+
+/* 도서 작은 창 안의 말풍선 — 창이 작으니 글자도 작게 */
+.pin-small { min-width: 26px; height: 22px; padding: 0 6px; font-size: 10px; }
+
+/* 그 학교를 **관심목록에 담은 사람 수** — 말풍선 위에 얹는 작은 배지 (`DESIGN.md §12-158`).
+   ⛔ **이름이 `pin-seen` 이었다.** 2026-08-23 에 조회수에서 관심목록 수로 바뀌면서 같이 갈았다 —
+      뜻이 달라진 이름을 두면 다음 사람이 조회수인 줄 알고 읽는다(사장님 — 「그걸 관심목록에
+      추가한 숫자로 표기하는 거임. 하트랑 숫자 하나만 띄워주면 됨」).
+   ⛔ 말풍선 색과 겹치지 않게 **어두운 단색**으로 둔다. 흐림은 걸지 않는다 —
+      1,600개가 지도를 끌 때마다 매 프레임 다시 칠해진다(§12-51 과 같은 까닭).
+   ⛔ 손가락을 먹지 않게 `pointer-events: none` 이다. 이걸 안 걸면 말풍선 위쪽이 안 눌린다. */
+.pin-watch {
+  order: -1;
+  margin-bottom: 3px;
+  padding: 2px 6px;
+  border-radius: 7px;
+  background: var(--ink-strip);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.32);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+/* 하트 — ⛔ 이모지가 아니라 **lucide 하트를 그린 svg** 다(CLAUDE.md §3).
+   ⛔ 10px 에서는 **선보다 채움이 읽힌다.** lucide 는 선 아이콘이지만 닫힌 길이라 채워도 모양이 산다. */
+.pin-watch > svg {
+  width: 9px;
+  height: 9px;
+  fill: currentColor;
+  stroke: none;
+  flex: none;
+}
+/* ⭐ **내가 담은 학교**는 하트가 붉다 (2026-08-23 사장님 — 「내가 관심목록에 저장한 학교들은
+   따로 마커를 강조해줘야하지 않나? … 거기만 하트가 붉은색이라던가」).
+   ⛔ 말풍선을 늘 펴 두는 쪽은 안 골랐다 — 지도가 이미 6,200개를 그리고 있어서 아홉을 펴 두면 겹친다.
+   ⛔ **색 하나만 바꾼다.** 크기·자리를 건드리면 담은 학교와 안 담은 학교의 말풍선 폭이 달라져
+      지도가 들쭉날쭉해진다.
+   ⛔ 배지 바탕이 어두운 단색(--ink-strip)이라 밝은 빨강을 쓴다 — `--up` 은 밝은 화면 기준이라
+      어두운 바탕에서 묻힌다. 어두운 테마의 `--up`(#ff6b6b)과 같은 값으로 고정한다. */
+.pin-watch[data-mine="1"] > svg {
+  fill: #ff6b6b;
+}
+
+/* ── 네이버 지도가 만든 DOM ────────────────────────────────────────────────
+   ⛔ **선택자로 손대지 않는다.** MapLibre 때는 `.maplibregl-*` 를 겨눠 조작 단추·저작자
+      표시를 우리 색으로 갈아입혔는데, 그때 **남의 CSS 가 뒤에 실려 우리 규칙이 통째로 진 적이
+      두 번 있었다**(`docs/postmortems.md`). 네이버는 그보다 더 나쁘다 — 조작 단추를 만드는
+      코드가 **나중에 따로 받아지는 서브모듈 안**에 있어서, 클래스 이름을 코드에서 확인할 수가
+      없다(2026-08-23 에 maps.js 를 받아 뒤졌는데 `map_copyright` 하나뿐이었다).
+      **확인 못 한 이름을 겨눈 규칙은 아무것도 안 하면서 통과만 한다.** 그래서 안 적는다.
+   대신 **부딪히지 않게 자리를 갈라 놓았다** —
+      · 줄이는·키우는 단추 → 오른쪽 **가운데**(`Position.RIGHT_CENTER`, map-screen.tsx)
+      · 범례 → 오른쪽 아래  · 겹쳐보기 → 오른쪽 위  · 도서 창 → 왼쪽 아래
+      · 폰에서는 단추를 아예 안 낸다 — 아래 시트가 화면의 45% 를 덮는다. 손가락은 오므려 줄인다.
+   ⛔ 저작자 표시(`map_copyright`)와 로고는 **건드리지 않는다.** 네이버 이용 조건이다. */
+
+/* 범례가 자기 높이를 `--legend-h` 로 내보낸다(`map-legend.tsx`). 지금은 범례 자신만 쓰지만,
+   오른쪽 아래에 무엇을 더 얹을 때 그 위에 앉히려면 이 값이 필요하다. */
+
+/* 말풍선에 적을 값을 하나도 안 고르면 **색만** 남는다(§12-91).
+   ⛔ 그래도 44px 손가락에 닿아야 하므로 눌리는 칸은 안 줄인다 — 보이는 알약만 작아진다. */
+.pin.pin-bare {
+  min-width: 20px;
+  padding: 0 4px;
+}
+
+/* 값이 둘 이상이면 **줄을 나눠 쌓는다**(2026-08-23 사장님 「같은 줄이 있으니 보기 싫음」).
+   ⛔ 한 줄로 이으면 「갑 · 15학급 · 23.7명」이 되어 옆으로 길어지고 **옆 학교를 덮는다.**
+   ⛔ 높이를 박지 않는다 — 값이 둘이냐 셋이냐에 따라 줄 수가 달라진다. */
+.pin.pin-multi {
+  flex-direction: column;
+  gap: 0;
+  height: auto;
+  min-height: 28px;
+  padding: 3px 7px;
+  border-radius: 9px;
+  line-height: 1.3;
+}
+.pin.pin-multi b {
+  font-weight: 600;
+}
+/* 첫 줄만 굵게 — 셋이 다 굵으면 어느 것이 먼저 읽히는지 없어진다 */
+.pin.pin-multi b:first-of-type {
+  font-weight: 700;
+}
+
+/* 브랜드(noonchi) — 로딩 중 **눈동자만** 굴러간다.
+   정본: `public/brand/noonchi/` · 확정 지시서 `CLAUDE_HANDOFF.md`(2026-08-23).
+   ⛔ **심볼 전체를 돌리지 않는다.** 캡슐과 흰자는 고정이고 눈동자 둘만 제자리에서 원을 그린다 —
+      통째로 돌리면 캡슐이 기울어 로고가 아니라 「돌아가는 그림」이 된다.
+   ⛔ **회전축은 눈마다 다르다.** 24 격자(레일)와 96 격자(심볼)가 좌표가 달라, 축은
+      부품에서 `transform-origin` 을 직접 얹는다. 여기서는 도는 방식만 정한다.
+   ⛔ **`transform-box: view-box` 가 없으면 축이 어긋난다.** SVG 안의 `<g>` 는 기본이
+      제 칠해진 영역(fill-box) 기준이라, 눈동자가 제 중심을 돌아 버리고 궤도를 안 그린다.
+   ⛔ **움직임을 줄이겠다는 설정에서는 멈춘다**(`.bar-run` 과 같은 규칙). */
+.noonchi-orbit {
+  transform-box: view-box;
+}
+.noonchi-loading .noonchi-orbit {
+  animation: noonchi-roll 900ms linear infinite;
+  will-change: transform;
+}
+/* 오른쪽 눈이 90ms 늦다 — 둘이 딱 맞으면 기계처럼 보이고, 어긋나야 살아 있는 것처럼 보인다 */
+.noonchi-loading .noonchi-orbit-right {
+  animation-delay: -90ms;
+}
+@keyframes noonchi-roll {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .noonchi-loading .noonchi-orbit {
+    animation: none;
+  }
+}

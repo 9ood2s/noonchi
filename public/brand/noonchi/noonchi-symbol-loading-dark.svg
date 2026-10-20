@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="status" aria-labelledby="title desc">
+  <title id="title">불러오는 중</title>
+  <desc id="desc">눈치 심볼의 두 시선이 어지러운 듯 원을 그리며 회전합니다.</desc>
+  <style>
+    .orbit { transform-box: view-box; animation: roll 900ms linear infinite; }
+    .orbit.left { transform-origin: 32px 48px; }
+    .orbit.right { transform-origin: 64px 48px; animation-delay: -90ms; }
+    @keyframes roll { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .orbit { animation: none; } }
+  </style>
+  <defs>
+    <clipPath id="left-eye"><circle cx="32" cy="48" r="14"/></clipPath>
+    <clipPath id="right-eye"><circle cx="64" cy="48" r="14"/></clipPath>
+  </defs>
+  <rect x="6" y="24" width="84" height="48" rx="24" fill="#5d9bea"/>
+  <circle cx="32" cy="48" r="14" fill="#ffffff"/>
+  <circle cx="64" cy="48" r="14" fill="#ffffff"/>
+  <g class="orbit left" clip-path="url(#left-eye)"><circle cx="40.5" cy="48" r="8" fill="#16202e"/></g>
+  <g class="orbit right" clip-path="url(#right-eye)"><circle cx="72.5" cy="48" r="8" fill="#16202e"/></g>
+</svg>

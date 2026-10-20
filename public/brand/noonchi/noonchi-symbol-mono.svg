@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
+  <title id="title">noonchi monochrome symbol</title>
+  <desc id="desc">A monochrome rounded slit containing two side-glancing eyes.</desc>
+  <defs>
+    <mask id="cutouts">
+      <rect width="96" height="96" fill="white"/>
+      <circle cx="32" cy="48" r="14" fill="black"/>
+      <circle cx="64" cy="48" r="14" fill="black"/>
+    </mask>
+    <clipPath id="left-eye"><circle cx="32" cy="48" r="14"/></clipPath>
+    <clipPath id="right-eye"><circle cx="64" cy="48" r="14"/></clipPath>
+  </defs>
+  <rect x="6" y="24" width="84" height="48" rx="24" fill="currentColor" mask="url(#cutouts)"/>
+  <circle cx="40.5" cy="48" r="8" fill="currentColor" clip-path="url(#left-eye)"/>
+  <circle cx="72.5" cy="48" r="8" fill="currentColor" clip-path="url(#right-eye)"/>
+</svg>

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#2f6fd0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="status" aria-labelledby="title desc">
+  <title id="title">불러오는 중</title>
+  <desc id="desc">눈치 아이콘의 두 시선이 원을 그리며 회전합니다.</desc>
+  <style>
+    .orbit { transform-box: view-box; animation: roll 900ms linear infinite; }
+    .orbit.left { transform-origin: 7.7px 12px; }
+    .orbit.right { transform-origin: 16.3px 12px; animation-delay: -90ms; }
+    @keyframes roll { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .orbit { animation: none; } }
+  </style>
+  <defs>
+    <clipPath id="left-eye"><circle cx="7.7" cy="12" r="3.1"/></clipPath>
+    <clipPath id="right-eye"><circle cx="16.3" cy="12" r="3.1"/></clipPath>
+  </defs>
+  <rect x="1.5" y="6" width="21" height="12" rx="6"/>
+  <circle cx="7.7" cy="12" r="3.1"/>
+  <circle cx="16.3" cy="12" r="3.1"/>
+  <g class="orbit left" clip-path="url(#left-eye)"><circle cx="9.6" cy="12" r="1.8" fill="#2f6fd0" stroke="none"/></g>
+  <g class="orbit right" clip-path="url(#right-eye)"><circle cx="18.2" cy="12" r="1.8" fill="#2f6fd0" stroke="none"/></g>
+</svg>

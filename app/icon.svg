@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" role="img" aria-labelledby="title desc">
+  <title id="title">noonchi favicon</title>
+  <desc id="desc">Simplified 16-pixel noonchi symbol.</desc>
+  <defs>
+    <clipPath id="left-eye"><circle cx="5" cy="8" r="2.4"/></clipPath>
+    <clipPath id="right-eye"><circle cx="11" cy="8" r="2.4"/></clipPath>
+  </defs>
+  <rect x="0.75" y="4" width="14" height="8" rx="4" fill="#2f6fd0"/>
+  <circle cx="5" cy="8" r="2.4" fill="#ffffff"/>
+  <circle cx="11" cy="8" r="2.4" fill="#ffffff"/>
+  <circle cx="6.45" cy="8" r="1.45" fill="#16202e" clip-path="url(#left-eye)"/>
+  <circle cx="12.45" cy="8" r="1.45" fill="#16202e" clip-path="url(#right-eye)"/>
+</svg>
