@@ -32,6 +32,8 @@ supabase db push
 
 새 프로젝트의 API URL·publishable key·서버 키를 환경변수에 넣는다. 공개본의 `supabase/config.toml`은 로컬 스택 설정이므로 호스팅 프로젝트의 Auth 설정은 다음 단계에서 따로 설정한다.
 
+조회수 기록에는 `20261020000000_school_views_service_grants.sql`도 필요하다. 이 마이그레이션은 서버 역할에 조회·삽입 권한을 명시하고 원시 기록의 브라우저 접근은 차단한다. 기존 공개본 설치를 갱신할 때는 본인 DB에 새 마이그레이션만 추가 적용한다. 데이터 초기화는 필요 없다. [적용·회귀 검사 안내](VIEW_RECORDING.md)를 참고한다.
+
 ## Google 로그인
 
 현재 로그인 화면은 Google만 표시한다. 이메일·비밀번호 가입 화면은 제공하지 않는다.

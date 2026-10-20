@@ -164,6 +164,7 @@ Vercel 등에는 **별도 새 배포 프로젝트**를 만들고 본인 환경�
 | `NEXT_PUBLIC_SUPABASE_…가 없다` | `build`·`verify`·`dev`에 DB 환경변수를 직접 설정했는지 확인. 자동 주입은 `local:dev`에만 적용 |
 | Google provider disabled·redirect mismatch | 사용하는 DB가 로컬/클라우드 중 어느 쪽인지 확인하고 해당 Auth 제공자·두 callback 주소 설정 |
 | 경로 열쇠 없음·로그인 필요 | Directions 키와 정식 로그인 확인. Kakao 키만으로 자동차 길찾기는 동작하지 않음 |
+| 조회수 `permission denied for table school_views` | 본인 DB에 `20261020000000_school_views_service_grants.sql`까지 적용하고 같은 프로젝트의 서버 키 설정. [조회수 기록·검증 안내](docs/VIEW_RECORDING.md) |
 
 게시된 `package-lock.json`을 사용해 `npm ci`로 설치합니다. 린트 플러그인의 호환 범위에 맞춘 ESLint 9에는 유지보수 종료 경고가 있습니다. 알려진 취약점 검사 결과와는 별개이며, 상위 플러그인의 ESLint 10 지원 후 함께 갱신해야 합니다. 자세한 내용은 [의존성 검증 기록](docs/DEPENDENCY_SECURITY.md)을 참고하세요. 설치 실패는 종료 코드로, 보안 권고는 `npm audit`으로 확인합니다. `npm audit fix --force`는 호환되지 않는 버전 변경도 할 수 있으므로 권고 내용을 확인하지 않고 실행하지 않습니다.
 
