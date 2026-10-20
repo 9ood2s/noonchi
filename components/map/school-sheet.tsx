@@ -44,7 +44,11 @@ export function SchoolSheet({
   overrideKey?: string | null;
 }) {
   const [vh, setVh] = useState(800);
-  const [h, setH] = useState(PEEK);
+  const [height, setHeight] = useState({ value: selected || overrideKey ? Math.round(800 * 0.45) : PEEK, selected, overrideKey, vh });
+  const h = height.value;
+  const setH = useCallback((next: number | ((current: number) => number)) => {
+    setHeight((current) => ({ ...current, value: typeof next === "function" ? next(current.value) : next }));
+  }, []);
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ y0: number; h0: number } | null>(null);
 
@@ -72,22 +76,12 @@ export function SchoolSheet({
     };
   }, [h, snaps]);
 
-  // 학교를 고르면 시트를 반쯤 올린다 — 눌렀는데 아무 일도 안 일어나면 안 된다
-  useEffect(() => {
-    if (selected) setH((cur) => (cur < snaps[1] ? snaps[1] : cur));
-  }, [selected, snaps]);
-
-  /**
-   * ⭐ **레일에서 관심목록·마이페이지를 눌러도 올린다**(2026-08-23 사장님 — 「모바일에서 메뉴에
-   * 마이페이지나 관심목록을 탭하면 **아래에서 조용히 바뀔뿐** 학교마커를 눌렀을 때처럼
-   * 패널이 위로 올라오지 않음」).
-   * ⛔ 학교를 누른 것과 **같은 동작**이어야 한다 — 하나만 올리면 「어떤 것은 올라오고 어떤 것은
-   *    안 올라온다」가 되어 눌린 건지 아닌지를 사람이 매번 다시 판단해야 한다.
-   * ⛔ 이미 그보다 높이 올려 뒀으면 **안 내린다.** 올리는 쪽으로만 움직인다.
-   */
-  useEffect(() => {
-    if (overrideKey) setH((cur) => (cur < snaps[1] ? snaps[1] : cur));
-  }, [overrideKey, snaps]);
+  // 선택이나 창 크기가 달라진 렌더에서 높이를 맞춘다. 같은 선택에서는 사용자의 드래그를 보존한다.
+  if (height.selected !== selected || height.overrideKey !== overrideKey || height.vh !== vh) {
+    const raise = (selected && (height.selected !== selected || height.vh !== vh))
+      || (overrideKey && (height.overrideKey !== overrideKey || height.vh !== vh));
+    setHeight({ selected, overrideKey, vh, value: raise ? Math.max(h, snaps[1]) : h });
+  }
 
   const onDown = useCallback((e: React.PointerEvent) => {
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -98,14 +92,14 @@ export function SchoolSheet({
   const onMove = useCallback((e: React.PointerEvent) => {
     if (!drag.current) return;
     setH(clamp(drag.current.h0 + (drag.current.y0 - e.clientY), PEEK, snaps[2]));
-  }, [snaps]);
+  }, [snaps, setH]);
 
   const onUp = useCallback(() => {
     if (!drag.current) return;
     drag.current = null;
     setDragging(false);
     setH((cur) => nearest(cur, snaps));
-  }, [snaps]);
+  }, [snaps, setH]);
 
   return (
     <section

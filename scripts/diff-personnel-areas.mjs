@@ -56,7 +56,6 @@ for (const [k, r] of a) if (!b.has(k)) gone.push(r);
 console.log(`경기 ${FROM} → ${TO} · 초등 [별표1]\n`);
 console.log(`학교 ${a.size} → ${b.size}\n`);
 
-const renamed = moved.filter((m) => m.old.school !== m.now.school);
 console.log(`⭐ 인사구역·급지가 바뀐 학교 ${moved.length}곳`);
 for (const m of moved) {
   const [city] = m.key.split('|');

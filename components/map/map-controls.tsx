@@ -118,7 +118,7 @@ export const ALL_FILTERS: FilterKey[] = ADDABLE.map((a) => a.key);
  * 펼침을 누른 단추 아래에 앉힌다. **화면 밖으로 나가면 안으로 당긴다.**
  * ⛔ `left`·`top` 으로 옮긴다. `transform` 은 펼침 애니메이션(.pop)이 쓰고 있어서 여기서 건드리면 지워진다.
  */
-const place = (btn: HTMLElement | null) => (el: HTMLDivElement | null) => {
+const place = (el: HTMLDivElement | null, btn: HTMLElement | null) => {
   if (!el || !btn) return;
   const b = btn.getBoundingClientRect();
   const M = 8;
@@ -186,7 +186,7 @@ function Chip({
           {/* 바깥을 누르면 닫힌다. 폰에서 손가락으로 닫을 자리가 있어야 한다 */}
           <button type="button" aria-label="닫기" onClick={onOpen} className="fixed inset-0 z-10 cursor-default" />
           <div
-            ref={place(btn.current)}
+            ref={(el) => place(el, btn.current)}
             className={`glass glass-thick pop fixed z-20 max-h-[70vh] overflow-y-auto overscroll-contain rounded-panel p-2 ${width}`}
           >
             {/* ⛔ 「빼기」 줄은 없앴다 — 칩 자체에 ✕ 가 붙어 같은 일을 둘로 하게 된다(§11-3) */}
@@ -601,7 +601,7 @@ export function MapFilters({
           <>
             <button type="button" aria-label="닫기" onClick={() => flip("추가")} className="fixed inset-0 z-10 cursor-default" />
             <div
-              ref={place(plus.current)}
+              ref={(el) => place(el, plus.current)}
               className="glass glass-thick pop fixed z-20 max-h-[70vh] w-56 overflow-y-auto overscroll-contain rounded-panel p-2"
             >
               {(["학교 고르기"] as const).map((kind) => (

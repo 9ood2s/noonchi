@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 /** 관련 서비스 링크는 각 배포에서 명시적으로 설정한 경우에만 표시한다. */
 const MADE = [
   { latin: "supapad", tail: "pad", what: "패들릿 대신", href: process.env.NEXT_PUBLIC_SUPAPAD_URL?.trim() },
@@ -28,7 +30,7 @@ export function MadeBy() {
               className="flex min-h-11 items-center gap-2.5 active:opacity-60"
             >
               {/* ⛔ 로고는 두 서비스가 같이 쓴다. 파일 하나를 두 줄이 쓴다 */}
-              <img src="/brand/supa.svg" alt="" width={22} height={22} className="shrink-0 rounded-[5px]" aria-hidden />
+              <Image src="/brand/supa.svg" alt="" width={22} height={22} className="shrink-0 rounded-[5px]" aria-hidden />
               <span className="text-[14px] tracking-[-0.02em]">
                 <b className="font-extrabold">supa</b>
                 <span className="font-normal">{m.tail}</span>

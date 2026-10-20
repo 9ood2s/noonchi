@@ -18,7 +18,7 @@
  * ⛔ **바깥은 사람이 누를 때만 부른다**(§12-136). 열 때는 저장해 둔 값만 읽는다.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink, Loader2, X } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
 import { NeedLogin } from "@/components/need-login";
@@ -35,31 +35,38 @@ type Dir = "출근" | "퇴근";
 /** 한 방향치 — 학교코드 → 값 */
 type Side = Record<string, Got>;
 
-export function ComparePanel({ pins, sido, onClose, onPick }: {
+type CompareProps = {
   pins: Pin[];
   sido: Sido;
   onClose: () => void;
   /** 학교 이름을 누르면 지도가 그리로 간다 */
   onPick: (p: Pin) => void;
-}) {
+};
+
+export function ComparePanel(props: CompareProps) {
   const [home, setHome] = useState<Home | null>(null);
   const [ready, setReady] = useState(false);
-  const [go, setGo] = useState<Side>({});
-  const [back, setBack] = useState<Side>({});
-  const [avg, setAvg] = useState<Record<string, RatingAvg>>({});
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState<string | null>(null);
-  const [needLogin, setNeedLogin] = useState(false);
-
-  const codes = pins.map((p) => p.k).filter((k): k is string => !!k);
-
-  // ⛔ 그리는 도중에 읽지 않는다 — localStorage 는 브라우저에만 있다
   useEffect(() => {
     const read = () => { setHome(readHome()); setReady(true); };
     read();
     window.addEventListener(HOME_CHANGED, read);
     return () => window.removeEventListener(HOME_CHANGED, read);
   }, []);
+  // 비교 대상이나 집이 바뀌면 진행 중인 비교와 이전 표를 함께 놓는다.
+  const queryKey = JSON.stringify([home, props.pins.map((p) => p.k)]);
+  return <CompareContents key={queryKey} {...props} home={home} ready={ready} />;
+}
+
+function CompareContents({ pins, sido, onClose, onPick, home, ready }: CompareProps & { home: Home | null; ready: boolean }) {
+  const [go, setGo] = useState<Side>({});
+  const [back, setBack] = useState<Side>({});
+  const [avg, setAvg] = useState<Record<string, RatingAvg>>({});
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+  const [needLogin, setNeedLogin] = useState(false);
+  const controller = useRef<AbortController | null>(null);
+  const codesKey = pins.map((p) => p.k).filter((k): k is string => !!k).join(",");
+  const codes = useMemo(() => codesKey ? codesKey.split(",") : [], [codesKey]);
 
   // 별점 — 한 번에 읽는다. ⛔ 실패해도 표는 그린다(별점 한 줄만 비운다)
   useEffect(() => {
@@ -69,44 +76,53 @@ export function ComparePanel({ pins, sido, onClose, onPick }: {
       .then((r) => alive && setAvg(r.avg))
       .catch(() => alive && setAvg({}));
     return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [codes.join(",")]);
+  }, [codes]);
 
   /** 저장해 둔 통근 값을 두 방향 다 읽는다. ⛔ 바깥은 안 부른다 */
-  const load = useCallback(async () => {
-    if (!home || !codes.length) return;
+  const load = useCallback(async (signal: AbortSignal) => {
+    if (!home || !codes.length) return { go: {}, back: {} };
     const at = homePoint(home);
     const one = async (dir: Dir) => {
       const r = await fetch("/api/commute/many", {
         method: "POST",
+        signal,
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ lat: at.lat, lng: at.lng, codes, dir, at: dir === "퇴근" ? outAt(home) : home.at }),
       });
       const j = (await r.json()) as { ok?: boolean; found?: Side };
       return j?.ok ? (j.found ?? {}) : {};
     };
-    try {
-      const [a, b] = await Promise.all([one("출근"), one("퇴근")]);
-      setGo(a);
-      setBack(b);
-    } catch {
-      // ⛔ 요청이 끊기면 위에 닿지도 못한다(§11-2). 저장한 것을 못 읽은 것뿐이라 표는 그대로 그린다
-      setFailed("저장한 통근 시간을 못 읽었습니다");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [home, codes.join(",")]);
+    const [go, back] = await Promise.all([one("출근"), one("퇴근")]);
+    return { go, back };
+  }, [home, codes]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const request = new AbortController();
+    controller.current = request;
+    load(request.signal).then((result) => {
+      if (request.signal.aborted) return;
+      setGo(result.go);
+      setBack(result.back);
+    }).catch(() => {
+      if (!request.signal.aborted) setFailed("저장한 통근 시간을 못 읽었습니다");
+    });
+    return () => { request.abort(); controller.current?.abort(); };
+  }, [load]);
 
   /** 아직 없는 학교만 실제로 찾는다. ⛔ 사람이 누를 때만이고, 로그인이 필요하다(§12-136) */
   const find = async () => {
     if (!home) return;
+    controller.current?.abort();
+    const request = new AbortController();
+    controller.current = request;
+    const signal = request.signal;
     setBusy(true);
     setFailed(null);
     setNeedLogin(false);
     const at = homePoint(home);
     try {
       const { data } = await authClient().auth.getUser();
+      if (signal.aborted) return;
       if (!data?.user || data.user.is_anonymous) {
         setNeedLogin(true);
         setBusy(false);
@@ -123,9 +139,11 @@ export function ComparePanel({ pins, sido, onClose, onPick }: {
       for (const dir of ["출근", "퇴근"] as Dir[]) {
         const side = dir === "출근" ? go : back;
         for (const code of codes) {
+          if (signal.aborted) return;
           if (side[code]) continue;
           const r = await fetch("/api/commute", {
             method: "POST",
+            signal,
             headers: { "content-type": "application/json" },
             body: JSON.stringify({
               lat: at.lat, lng: at.lng, stdCode: code, dir,
@@ -133,6 +151,7 @@ export function ComparePanel({ pins, sido, onClose, onPick }: {
             }),
           }).catch(() => null);
           const j = r ? ((await r.json().catch(() => null)) as { ok?: boolean; needLogin?: boolean } | null) : null;
+          if (signal.aborted) return;
           if (j?.needLogin) {
             setNeedLogin(true);
             setBusy(false);
@@ -141,9 +160,13 @@ export function ComparePanel({ pins, sido, onClose, onPick }: {
           if (!j?.ok) bad++;
         }
       }
-      await load();
+      const result = await load(signal);
+      if (signal.aborted) return;
+      setGo(result.go);
+      setBack(result.back);
       if (bad) setFailed(`${bad}곳은 경로를 찾지 못했습니다`);
     } catch {
+      if (signal.aborted) return;
       setFailed("경로를 찾지 못했습니다");
     }
     setBusy(false);

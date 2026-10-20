@@ -20,7 +20,7 @@
  * ⛔ **손가락은 방향키가 없다.** 줄을 그대로 눌러도 골라진다 — 키보드는 곁들임이다(§11-4).
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { useSchoolIndex } from "@/lib/school-index";
 import type { Sido } from "@/lib/schools";
@@ -48,7 +48,6 @@ export function SchoolPicker({
   const { found, failed, ready } = useSchoolIndex(true, q);
 
   // ⛔ 글자를 고치면 맨 위로 돌아간다. 안 그러면 세 번째 줄을 짚은 채 목록이 통째로 바뀐다
-  useEffect(() => setActive(0), [q]);
 
   // 짚은 줄이 안 보이면 그리로 굴린다 — 방향키로 내려가는데 화면이 안 따라오면 못 쓴다
   useEffect(() => {
@@ -67,7 +66,7 @@ export function SchoolPicker({
         <Search size={16} className="shrink-0 text-ink3" aria-hidden />
         <input
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={(e) => { setQ(e.target.value); setActive(0); }}
           onKeyDown={(e) => {
             if (!found.length) return;
             // ⛔ `preventDefault` 를 꼭 건다. 안 걸면 위·아래 키가 글자 맨 앞·맨 뒤로 커서를 옮긴다

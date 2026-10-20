@@ -44,19 +44,16 @@ export function HomeDialog({ now, onClose }: { now: Home | null; onClose: () => 
    */
   useEffect(() => {
     const term = q.trim();
-    setPicked(null);
-    if (term.length < 2) {
-      setCands(null);
-      setFailed(null);
-      return;
-    }
+    if (term.length < 2) return;
     let alive = true;
+    const controller = new AbortController();
     const t = setTimeout(async () => {
       setBusy(true);
       setFailed(null);
       try {
         const r = await fetch("/api/home", {
           method: "POST",
+          signal: controller.signal,
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ q: term }),
         });
@@ -80,6 +77,7 @@ export function HomeDialog({ now, onClose }: { now: Home | null; onClose: () => 
     }, 350);
     return () => {
       alive = false;
+      controller.abort();
       clearTimeout(t);
     };
   }, [q]);
@@ -125,7 +123,13 @@ export function HomeDialog({ now, onClose }: { now: Home | null; onClose: () => 
               <MapPin size={16} className="shrink-0 text-ink3" aria-hidden />
               <input
                 value={q}
-                onChange={(e) => setQ(e.target.value)}
+                onChange={(e) => {
+                  setQ(e.target.value);
+                  setPicked(null);
+                  setCands(null);
+                  setFailed(null);
+                  setBusy(false);
+                }}
                 /**
                  * ⭐ **방향키와 엔터로 고른다**(2026-08-23 사장님 — 「드롭다운으로 해야 방향키로
                  *    선택하고 엔터로 입력 깔끔하게 딱 되지 않음?」). 학교 고르기와 같은 조작이다.

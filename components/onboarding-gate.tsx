@@ -18,6 +18,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Check } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Portal } from "@/components/portal";
 import { NicknameField } from "@/components/nickname-field";
 import { SchoolPicker, type PickedSchool } from "@/components/school-picker";
@@ -30,43 +31,35 @@ import { josa } from "@/lib/josa";
 type Step = "닉네임" | "소속교" | "거주지역";
 
 export function OnboardingGate() {
+  const router = useRouter();
   const [step, setStep] = useState<Step | null>(null);
-  const [nick, setNick] = useState<string | null>(null);
   const [picked, setPicked] = useState<PickedSchool | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
 
-  /** 무엇이 비어 있는지 보고 첫 칸을 정한다. ⛔ 손님과 비로그인은 아예 안 본다 */
-  const look = useCallback(async () => {
-    try {
+  // DB 응답을 받은 뒤 갱신한다. 구독 해제 이후의 늦은 응답은 버린다.
+  useEffect(() => {
+    let alive = true;
+    let generation = 0;
+    const inspect = async (): Promise<Step | null> => {
       const supabase = authClient();
       const { data: me } = await supabase.auth.getUser();
-      if (!me.user || me.user.is_anonymous) return setStep(null);
-
-      const { data: row } = await supabase
-        .from("profiles")
-        .select("nickname")
-        .eq("id", me.user.id)
-        .maybeSingle();
-      const name = (row?.nickname as string | null) ?? null;
-      setNick(name);
-
-      const home = await readHomeSchool();
-      if (!name) return setStep("닉네임");
-      if (!home) return setStep("소속교");
-      setStep(null);
-    } catch {
-      // ⛔ 못 봤으면 **안 띄운다.** 잘못 띄우면 이미 다 채운 사람을 다시 붙잡는다
-      setStep(null);
-    }
-  }, []);
-
-  useEffect(() => {
+      if (!me.user || me.user.is_anonymous) return null;
+      const { data: row } = await supabase.from("profiles").select("nickname").eq("id", me.user.id).maybeSingle();
+      if (!row?.nickname) return "닉네임";
+      return await readHomeSchool() ? null : "소속교";
+    };
+    const look = () => {
+      const request = ++generation;
+      void inspect().then((next) => { if (alive && request === generation) setStep(next); }).catch(() => {
+        if (alive && request === generation) setStep(null);
+      });
+    };
     look();
-    const { data: sub } = authClient().auth.onAuthStateChange(() => look());
-    return () => sub.subscription.unsubscribe();
-  }, [look]);
+    const { data: sub } = authClient().auth.onAuthStateChange(look);
+    return () => { alive = false; sub.subscription.unsubscribe(); };
+  }, []);
 
   /** 닉네임 칸은 저장되면 스스로 알리지 않는다 — 다시 보고 다음으로 넘긴다 */
   const afterNick = async () => {
@@ -83,7 +76,6 @@ export function OnboardingGate() {
       const name = (row?.nickname as string | null) ?? null;
       setBusy(false);
       if (!name) return setFailed("이름을 먼저 저장해 주십시오");
-      setNick(name);
       setStep("소속교");
     } catch (e: unknown) {
       setBusy(false);
@@ -105,9 +97,9 @@ export function OnboardingGate() {
   const done = useCallback(() => {
     setStep(null);
     if (picked) {
-      location.href = `/map?sido=${encodeURIComponent(picked.sido)}&office=${encodeURIComponent(picked.office)}`;
+      router.push(`/map?sido=${encodeURIComponent(picked.sido)}&office=${encodeURIComponent(picked.office)}`);
     }
-  }, [picked]);
+  }, [picked, router]);
 
   if (!step) return null;
 

@@ -125,7 +125,7 @@ function Select({
           {/* 바깥을 누르면 닫힌다. 폰에서 손가락으로 닫을 자리가 있어야 한다 */}
           <button type="button" aria-label="닫기" onClick={() => setOpen(false)} className="fixed inset-0 z-60 cursor-default" />
           <div
-            ref={place(btn.current)}
+            ref={(el) => place(btn.current)(el)}
             className={`glass glass-thick pop fixed z-60 max-h-[60vh] overflow-y-auto overscroll-contain rounded-panel p-2 ${width}`}
           >
             {items.map((it) => (

@@ -94,6 +94,8 @@ function Picks<T extends string>({ now, all, onPick }: { now: T; all: readonly T
 
 // ── ① 요약 ──────────────────────────────────────────────────────────────────
 
+const readSummary = () => Promise.all([readOverview(), readDaily(), readHourly(), readActivity()]);
+
 export function SummaryPanel() {
   const [ov, setOv] = useState<Overview | null>(null);
   const [daily, setDaily] = useState<Daily[]>([]);
@@ -104,22 +106,25 @@ export function SummaryPanel() {
   /** 다시 받는 중인가. ⛔ 두 번 눌러 두 번 부르지 않게 잠근다 */
   const [again, setAgain] = useState(false);
 
-  const load = useCallback(async () => {
-    setAgain(true);
-    const [o, d, h, a] = await Promise.all([readOverview(), readDaily(), readHourly(), readActivity()]);
-    // ⛔ 실패를 삼키지 않는다. 하나라도 못 읽으면 그 까닭을 화면에 적는다(§11-2)
+  const receive = useCallback(([o, d, h, a]: Awaited<ReturnType<typeof readSummary>>) => {
     setWhy(o.error ?? d.error ?? h.error ?? a.error ?? null);
     setOv(o.row);
     setDaily(d.rows);
     setHourly(h.rows);
     setActs(a.rows);
     setReady(true);
-    setAgain(false);
   }, []);
+  const load = useCallback(async () => {
+    setAgain(true);
+    receive(await readSummary());
+    setAgain(false);
+  }, [receive]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let alive = true;
+    void readSummary().then((result) => { if (alive) receive(result); });
+    return () => { alive = false; };
+  }, [receive]);
 
   /**
    * 막대로 옮긴다.
@@ -518,8 +523,15 @@ export function ReportsPanel() {
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let alive = true;
+    void readReports().then((r) => {
+      if (!alive) return;
+      setWhy(r.error);
+      setRows(r.rows);
+      setReady(true);
+    });
+    return () => { alive = false; };
+  }, []);
 
   const shown = useMemo(() => {
     if (pick === "전체") return rows;

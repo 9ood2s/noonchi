@@ -7,6 +7,7 @@ import { Portal } from "@/components/portal";
 import { LoginForm } from "@/components/login-form";
 import { LOGIN_EVENT, hereAsNext } from "@/lib/login-gate";
 import { authClient } from "@/lib/auth/client";
+import { useClientReady } from "@/lib/client-ready";
 
 /**
  * **로그인 · 가입 모달** — 지도를 열어 둔 채로 연다 (§12-144).
@@ -30,9 +31,24 @@ function reason(code: string): string {
   return code;
 }
 
+function initialLoginRequest() {
+  const url = new URL(window.location.href);
+  if (url.searchParams.get("login") !== "1") return null;
+  const failed = url.searchParams.get("error");
+  url.searchParams.delete("login");
+  url.searchParams.delete("error");
+  return { next: url.pathname + url.search, failed };
+}
+
 export function LoginGate() {
-  const [open, setOpen] = useState(false);
-  const [failed, setFailed] = useState<string | null>(null);
+  const ready = useClientReady();
+  return ready ? <ClientLoginGate /> : null;
+}
+
+function ClientLoginGate() {
+  const [request] = useState(initialLoginRequest);
+  const [open, setOpen] = useState(!!request);
+  const [failed, setFailed] = useState<string | null>(request?.failed ?? null);
   /**
    * 손님으로 담아 둔 것을 몇 곳 들고 나왔나(`lib/auth/carry.ts`).
    * ⛔ **승격이 막힌 그 순간에 적어 둔다** — 그 뒤에는 손님 계정에 닿을 길이 없다.
@@ -43,7 +59,7 @@ export function LoginGate() {
     void stashGuestWatchlist().then(setCarried);
   }, [failed]);
   const [mine, setMine] = useState<string | null>(null);
-  const [next, setNext] = useState("/");
+  const [next, setNext] = useState(request?.next ?? "/");
 
   const close = useCallback(() => {
     setOpen(false);
@@ -68,16 +84,12 @@ export function LoginGate() {
    * ⛔ 읽고 나서 주소에서 지운다. 안 지우면 새로고침할 때마다 다시 뜬다.
    */
   useEffect(() => {
+    if (!request) return;
     const url = new URL(window.location.href);
-    if (url.searchParams.get("login") !== "1") return;
-    const err = url.searchParams.get("error");
     url.searchParams.delete("login");
     url.searchParams.delete("error");
     window.history.replaceState(null, "", url);
-    setNext(url.pathname + url.search);
-    setFailed(err);
-    setOpen(true);
-  }, []);
+  }, [request]);
 
   // 열려 있는 동안만 본다. ⛔ 손님(익명)은 로그인이 아니라 `null` 로 둔다
   useEffect(() => {

@@ -17,14 +17,15 @@
  *    아무것도 조용히 사라지지 않는다.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { List, X } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { SIDOS, hasAreas, type Sido } from "@/lib/schools";
 import { UNKNOWN_GRADE } from "@/lib/areas.mjs";
 import {
   FIRST_VIEW, ZOOM_NAME, ZOOM_SPLIT,
   areaColor, mapLabel, pinInk, pinPerClass, pinTexts, PIN_VALUES, PALETTE,
-  type Facet, type Feat, type Group, type Pack, type Pin, type PinValue, type SidoPack,
+  type Facet, type Feat, type Group, type GroupPin, type Pack, type Pin, type PinValue, type SidoPack,
   FACETS,
 } from "@/lib/map";
 import { MAP_STYLE, boundsOf, loadNaverMaps, morphWithOffset, toLatLng } from "@/lib/naver-map";
@@ -125,6 +126,30 @@ const MAX_ZOOM = 17;
 const PANEL_W = 380;
 
 export function MapScreen() {
+  // 정적 페이지는 그대로 만들고, URL을 읽는 경계만 클라이언트에서 채운다.
+  return <Suspense fallback={null}><MapScreenLocation /></Suspense>;
+}
+
+function MapScreenLocation() {
+  const params = useSearchParams();
+  // 새 지역·지원청·학교로 이동하면 초기 선택도 새로 시작한다.
+  // 레일 패널·로그인 query 변경은 현재 지도·선택을 유지한다.
+  const target = JSON.stringify([params.get("sido"), params.get("office"), params.get("school")]);
+  return <MapScreenSession key={target} initialSearch={params.toString()} />;
+}
+
+function MapScreenSession({ initialSearch }: { initialSearch: string }) {
+  const [initial] = useState(() => {
+    const q = new URLSearchParams(initialSearch);
+    const want = q.get("sido");
+    return {
+      sido: want && (SIDOS as readonly string[]).includes(want) ? want as Sido : "경기" as Sido,
+      picked: !!(want || q.get("office") || q.get("school")),
+      office: q.get("office"),
+      school: q.get("school"),
+      panel: panelFrom(q.get("panel")),
+    };
+  });
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<naver.maps.Map | null>(null);
   /**
@@ -182,13 +207,13 @@ export function MapScreen() {
    * ⛔ `sido` 를 `null` 로 두지 않는다 — 아래 수십 곳이 시·도가 있다고 보고 짜여 있다.
    *    **고르기 전에는 그 시·도를 안 그릴 뿐이다.**
    */
-  const [picked, setPicked] = useState(false);
+  const [picked, setPicked] = useState(initial.picked);
   /** 시·도마다 말풍선 하나 — 학교들의 한가운데(`/map/sido`) */
   const [sidoPins, setSidoPins] = useState<{ sido: string; n: number; lat: number; lng: number }[]>([]);
   const [failed, setFailed] = useState<string | null>(null);
-  const [sido, setSido] = useState<Sido>("경기");
+  const [sido, setSido] = useState<Sido>(initial.sido);
   /** 멀리서 볼 때 무엇으로 묶나. 전보가 도는 단위가 지원청이라 그쪽이 기본이다. */
-  const [group, setGroup] = useState<Group>("지원청");
+  const group: Group = "지원청";
   /**
    * 도서 지역을 켜 뒀나.
    *
@@ -226,7 +251,7 @@ export function MapScreen() {
    * 서 있는 필터 칩. ⛔ **처음부터 다 세운다**(2026-08-23 사장님 · §12-100).
    *    빼는 것은 칩의 ✕, 다시 넣는 것은 「+」 — 둘 다 전과 같다.
    */
-  const [shown, setShown] = useState<FilterKey[]>(ALL_FILTERS);
+  const [shown, setShown] = useState<FilterKey[]>(() => initial.sido === "인천" ? ALL_FILTERS.filter((k) => k !== "구역") : ALL_FILTERS);
   /**
    * 왼쪽 칸을 목록으로 열어 뒀나. ⛔ 기본은 닫힘이다 — 늘 열어 두면 지도의 380px 을
    * 아무것도 안 하는 채로 먹는다(2026-08-21 사장님). 학교를 고르면 상세로 저절로 열린다.
@@ -236,6 +261,9 @@ export function MapScreen() {
   const [selected, setSelected] = useState<Pin | null>(null);
   const [visible, setVisible] = useState<Pin[]>([]);
   const [grouped, setGrouped] = useState(true);
+  /** 지도 callback에서 받은 화면 범위 스냅샷. 렌더 중에는 SDK를 조회하지 않는다. */
+  const [groupSnapshot, setGroupSnapshot] = useState<{ sido: Sido; groups: GroupPin[] } | null>(null);
+  const groupsInView = groupSnapshot && groupSnapshot.sido === sido ? groupSnapshot.groups : [];
   const [query, setQuery] = useState("");
   const [ready, setReady] = useState(false);
   /** 지금 배율 — 우리가 그린 ＋/− 단추가 한계에 닿았는지 보는 데 쓴다(§12-169) */
@@ -259,12 +287,12 @@ export function MapScreen() {
    */
   const [watch, setWatch] = useState<Record<string, number>>({});
   /** 레일이 연 칸 — 관심목록 · 마이페이지 (§12-95). ⛔ 화면을 갈아치우지 않는다 */
-  const [panel, setPanel] = useState<PanelKey>(null);
+  const [panel, setPanel] = useState<PanelKey>(initial.panel);
   /**
    * ⛔ **말풍선 손잡이는 한 번만 달고 계속 쓴다** — 그래서 최신 상태를 `panel` 로 못 읽는다
    *    (손잡이를 달던 그때의 값이 안에 굳는다). 지금 값은 이 ref 로 읽는다. `wideRef` 와 같은 까닭이다.
    */
-  const panelRef = useRef<PanelKey>(null);
+  const panelRef = useRef<PanelKey>(initial.panel);
   /**
    * 비교 판에 올린 학교들 (§12-144). ⛔ **화면 가운데**에 뜨고 지도를 덮는다
    * (2026-08-23 사장님 — 「이건 패널이 좀 커져서 지도를 덮어도 좋아」).
@@ -282,32 +310,36 @@ export function MapScreen() {
    * ⛔ **목록이 오기 전에는 못 건다.** 없는 이름을 필터에 걸면 학교가 하나도 안 남고,
    *    칩도 안 서 있어서 뺄 방법조차 없다 — 화면이 빈 채로 멈춘다.
    */
-  const wantOffice = useRef<string | null>(null);
+  const wantOffice = useRef<string | null>(initial.office);
   /**
    * 학교별 정적 화면에서 「지도에서 보기」를 눌러 들어온 경우 (`/map?sido=경기&school=<표준학교코드>`).
    * ⛔ 지원청과 같은 까닭으로 **목록이 오기 전에는 못 건다** — 아래에서 맞춰 본다.
    */
-  const wantSchool = useRef<string | null>(null);
+  const wantSchool = useRef<string | null>(initial.school);
 
   const pack = packs[sido] ?? null;
 
-  /**
-   * 주소에 시·도가 적혀 있으면 그걸로 연다 (`/map?sido=인천`).
-   * ⛔ useSearchParams 를 쓰지 않는다 — 그러면 이 화면이 Suspense 를 요구해서 정적 생성이 깨진다.
-   *    브라우저에서 주소만 한 번 읽는다.
-   */
-  useEffect(() => {
-    const q = new URLSearchParams(location.search);
-    const want = q.get("sido");
-    if (want && (SIDOS as readonly string[]).includes(want)) setSido(want as Sido);
-    // 지원청은 목록이 온 뒤에야 걸 수 있다 — 아래에서 맞춰 본다
-    wantOffice.current = q.get("office");
-    wantSchool.current = q.get("school");
-    // ⛔ 지역이 적혀 왔으면 고르는 단계를 건너뛴다 — 두 번 누르게 하지 않는다
-    if (want || q.get("office") || q.get("school")) setPicked(true);
-    // 다른 화면에서 레일을 눌러 들어왔으면 주소에 칸 이름이 적혀 온다
-    setPanel(panelFrom(q.get("panel")));
-  }, []);
+  /** 지도 이동용 표시다. React 화면을 그릴 때는 읽지 않는다. */
+  const skipFit = useRef(false);
+  const selectedRef = useRef(false);
+
+  /** 지역을 바꾸는 동작이 필터도 함께 비운다. 화면 폭·지도 준비 상태는 선택을 풀지 않는다. */
+  const changeSido = useCallback((next: Sido) => {
+    if (next === sido) return;
+    setSido(next);
+    setFailed(null);
+    setZones([]);
+    setGrades([]);
+    setOffices([]);
+    setCities([]);
+    setClasses(null);
+    setSelected(null);
+    selectedRef.current = false;
+    setShown((v) => next === "인천"
+      ? v.filter((k) => k !== "구역")
+      : v.includes("구역") ? v : ALL_FILTERS.filter((k) => k === "구역" || v.includes(k)));
+    if (!hasAreas(next)) setPinValue((v) => v.length === 1 && v[0] === "구역" ? ["학급수"] : v);
+  }, [sido]);
 
   /**
    * 통근 경로를 지도에 그린다 (§12-101).
@@ -507,28 +539,19 @@ export function MapScreen() {
    *    다만 삼키지 않는다(§11-2) — 못 받으면 콘솔에 남기고 숫자를 안 그린다.
    * ⛔ `.catch` 를 같이 단다. 요청이 끊기면 `error` 를 볼 자리에 닿지도 못한다.
    */
-  const loadWatch = useCallback(async () => {
-    try {
-      /**
-       * ⛔ **Supabase 를 곧바로 부르지 않는다**(§12-104). 그러면 지도를 여는 사람 한 명마다
-       *    집계가 한 번씩 돈다 — 3만 명이면 3만 번이다.
-       *    이 경로가 2분 캐시로 받아 준다. 사람이 몇이든 DB 는 2분에 한 번만 훑는다.
-       */
-      const r = await fetch("/map/watch");
-      const j = await r.json();
-      if (!j?.ok) {
-        console.error("[관심목록 수]", j?.error ?? r.status);
-        return;
-      }
-      setWatch(j.watch ?? {});
-    } catch (e) {
-      // ⛔ 던지는 길도 잡는다. 못 받아도 지도는 돈다(§11-2)
-      console.error("[관심목록 수]", e);
-    }
-  }, []);
   useEffect(() => {
-    void loadWatch();
-  }, [loadWatch]);
+    const controller = new AbortController();
+    fetch("/map/watch", { signal: controller.signal })
+      .then(async (r) => {
+        const j = await r.json();
+        if (!j?.ok) throw new Error(j?.error ?? String(r.status));
+        setWatch(j.watch ?? {});
+      })
+      .catch((e: unknown) => {
+        if (!controller.signal.aborted) console.error("[관심목록 수]", e);
+      });
+    return () => controller.abort();
+  }, []);
 
   /**
    * **내가 담은 학교들.** 말풍선 하트를 붉게 칠하는 데 쓴다(§12-165).
@@ -689,7 +712,7 @@ export function MapScreen() {
         // ⛔ 맞추기를 건너뛴다 — 안 그러면 시·도 전체가 떠서 소속교가 안 보인다(§12-168-1)
         skipFit.current = true;
         wantSchool.current = mine.std_code;
-        setSido(at.sido as Sido);
+        changeSido(at.sido as Sido);
         setPicked(true);
         map.current?.morph(toLatLng([at.lng, at.lat]), Math.max(map.current.getZoom(), ZOOM_NAME));
       } catch (e) {
@@ -697,7 +720,7 @@ export function MapScreen() {
       }
     })();
     return () => { alive = false; };
-  }, [picked]);
+  }, [picked, changeSido]);
 
   /**
    * 시·도 말풍선을 받는다. ⛔ **고르기 전에만** 부른다 — 고른 뒤에는 쓸 일이 없다.
@@ -732,13 +755,11 @@ export function MapScreen() {
     // ⛔ 고르기 전에는 안 받는다 — 안 그릴 것을 미리 받으면 첫 화면에서 헛되이 쓴다
     if (!picked || packs[sido]) return;
     let alive = true;
-    setFailed(null);
     fetch(`/map/data/${encodeURIComponent(sido)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`학교 목록을 못 받았습니다 (서버 ${r.status})`))))
       .then((j: SidoPack) => {
         if (!alive) return;
-        const { year: _y, sido: got, ...one } = j;
-        setPacks((prev) => ({ ...prev, [got]: one }));
+        setPacks((prev) => ({ ...prev, [j.sido]: { schools: j.schools, offices: j.offices, cities: j.cities, meta: j.meta } }));
       })
       .catch((e: unknown) => alive && setFailed(e instanceof Error ? e.message : "학교 목록을 못 받았습니다"));
     return () => { alive = false; };
@@ -838,7 +859,7 @@ export function MapScreen() {
         wrap.setAttribute("aria-label", `${sp.sido} ${sp.n}교 — 눌러서 고르기`);
         wrap.addEventListener("click", () => {
           if (!(SIDOS as readonly string[]).includes(sp.sido)) return;
-          setSido(sp.sido as Sido);
+          changeSido(sp.sido as Sido);
           setPicked(true);
         });
         markers.current.set(
@@ -882,6 +903,7 @@ export function MapScreen() {
     const asCities = !filtering && (m.getZoom() < ZOOM_SPLIT || near.length > PIN_LIMIT);
     setGrouped(asCities);
     setVisible(near.map((f) => f.properties));
+    setGroupSnapshot({ sido, groups: (group === "지원청" ? pack.offices : pack.cities).features.filter(inView).map((f) => f.properties) });
 
     const withName = m.getZoom() >= ZOOM_NAME;
     /**
@@ -1051,7 +1073,7 @@ export function MapScreen() {
       );
     }
     sweep(want);
-  }, [pack, sido, group, islands, passes, filtering, pinValue, sweep, picked, sidoPins]);
+  }, [pack, sido, group, islands, passes, filtering, pinValue, sweep, picked, sidoPins, changeSido]);
 
   useEffect(() => {
     drawRef.current = draw;
@@ -1073,6 +1095,7 @@ export function MapScreen() {
     let media: MediaQueryList | null = null;
     let onTheme: (() => void) | null = null;
     let themeOff: (() => void) | null = null;
+    const mountedMarkers = markers.current;
 
     (async () => {
       const nv = await loadNaverMaps();
@@ -1159,8 +1182,8 @@ export function MapScreen() {
       dead = true;
       if (media && onTheme) media.removeEventListener("change", onTheme);
       themeOff?.();
-      for (const mk of markers.current.values()) mk.setMap(null);
-      markers.current.clear();
+      for (const mk of mountedMarkers.values()) mk.setMap(null);
+      mountedMarkers.clear();
       for (const ln of lines.current) ln.setMap(null);
       lines.current = [];
       for (const mk of ends.current) mk.setMap(null);
@@ -1172,53 +1195,6 @@ export function MapScreen() {
     };
   }, []);
 
-  // 경계선 켜고 끄기
-
-  // 시·도를 바꾸면 고른 구역을 지운다 — 경기 「병-나」를 인천에서 찾으면 아무것도 안 나온다
-  // ⛔ 시·도를 바꾸면 고른 값을 비운다 — 구역(갑·을·병 ↔ Ⅰ·Ⅱ·Ⅲ)도 지원청 이름도 서로 없는 값이다.
-  //    그리고 인천으로 넘어가면 꺼내 둔 「구역」 칩도 거둔다. 인천은 그 값을 화면에 안 낸다.
-  useEffect(() => {
-    setZones([]);
-    setGrades([]);
-    setOffices([]);
-    setCities([]);
-    // ⛔ 학급수도 비운다. 숫자라 시·도가 달라도 뜻이 통할 것 같지만 **정의역이 다르다**
-    //    (경기 5~79 · 인천 2~76). 양 끝을 걸어 둔 채 넘어가면 새 시·도가 0교가 된다.
-    setClasses(null);
-    // 인천엔 인사구역 칩이 없다(급지로 가른다). 경기로 돌아오면 도로 세운다.
-    setShown((v) =>
-      sido === "인천"
-        ? v.filter((k) => k !== "구역")
-        : v.includes("구역")
-          ? v
-          : ALL_FILTERS.filter((k) => k === "구역" || v.includes(k)),
-    );
-  }, [sido]);
-
-  // 시·도를 바꾸면 그 시·도 학교가 다 들어오게 맞춘다.
-  // ⛔ 배율을 숫자로 고정하지 않는다 — 화면 폭마다 담는 범위가 다르다.
-  //    폰은 떠 있는 검색줄과 아래 시트만큼 위아래 여백을 준다. 두 칸일 때는 지도가 제 칸을 다 쓴다.
-  /**
-   * ⛔ **고른 학교는 시·도가 실제로 바뀔 때만 푼다.**
-   *    전에는 이 효과에 들어오자마자 `setSelected(null)` 을 했는데, 이 효과는 `ready` 와 `wide` 로도
-   *    다시 돈다 — 지도가 준비되는 순간과 화면 폭이 넓은 쪽으로 넘어가는 순간에 **고른 학교가
-   *    저 혼자 풀렸다.** 창을 좁혔다 넓히면 상세가 닫히고, 주소로 학교를 열면
-   *    (`/map?school=…`) 열리자마자 도로 닫혔다.
-   *    푸는 뜻은 「다른 시·도로 갔다」 하나이므로 그것만 본다.
-   */
-  /**
-   * **구역이 없는 시·도로 옮기면 말풍선이 빈다.** 기본값이 「인사구역 · 급지」인데
-   * 그 시·도는 그 값이 없어서 알약에 글자가 한 자도 안 남는다 — 색만 남은 점이 된다.
-   * 그래서 **고른 것이 「구역」 하나뿐일 때만** 학급수로 바꿔 준다.
-   * ⛔ 사람이 직접 고른 것(둘 이상 고른 경우)은 안 건드린다.
-   * ⛔ 되돌리지 않는다 — 경기로 돌아왔을 때 다시 「구역」으로 바꿔 놓으면, 방금 고른 값이
-   *    시·도를 오갈 때마다 뒤집힌다.
-   */
-  useEffect(() => {
-    if (hasAreas(sido)) return;
-    setPinValue((v) => (v.length === 1 && v[0] === "구역" ? ["학급수"] : v));
-  }, [sido]);
-
   /**
    * **고르기 전에는 전국이 다 보이게 맞춘다**(§12-167).
    * ⛔ `FIRST_VIEW`(경기 기준 배율)로 두면 **남해안·제주가 화면 밖**이라 고를 수가 없다 —
@@ -1227,10 +1203,6 @@ export function MapScreen() {
    *    시·도가 늘거나 줄면 그 숫자가 조용히 틀려진다.
    * ⛔ 한 번만 맞춘다. 사람이 밀거나 확대한 뒤에 다시 맞추면 손이 안 듣는 것처럼 느껴진다.
    */
-  /** 「내 자리로」가 옮긴 뒤 **맞추기 한 번을 건너뛰게** 하는 표시(§12-168-1) */
-  const skipFit = useRef(false);
-  /** 지금 고른 학교가 있나 — 위 「시·도 전체 맞추기」가 그것을 덮지 않게 본다 */
-  const selectedRef = useRef(false);
   const fitted = useRef(false);
   useEffect(() => {
     const m = map.current;
@@ -1250,12 +1222,9 @@ export function MapScreen() {
     });
   }, [picked, ready, sidoPins, wide]);
 
-  const lastSido = useRef<Sido | null>(null);
   useEffect(() => {
     const m = map.current;
     const nv = window.naver?.maps;
-    if (lastSido.current !== null && lastSido.current !== sido) setSelected(null);
-    lastSido.current = sido;
     // ⛔ 고르기 전에는 맞추지 않는다 — 맞추면 전국을 보여주려던 첫 화면이 경기로 끌려간다
     if (!picked || !m || !nv || !pack) return;
     /**
@@ -1321,7 +1290,7 @@ export function MapScreen() {
   useEffect(() => {
     for (const [code, el] of pinEls.current) {
       const on = selected?.k === code ? "1" : "";
-      el.dataset.on = on;
+      el.setAttribute("data-on", on);
       /**
        * ⛔ **`firstElementChild` 로 잡지 않는다.** 감싼 칸의 첫 자식은 알약이 아니라
        *    **조회수 배지**다(그것을 먼저 붙인다 — 눈에 보이는 순서는 CSS `order` 가 정한다).
@@ -1329,7 +1298,7 @@ export function MapScreen() {
        *    2026-08-23 에 그 상태였다. 이름으로 잡으면 붙이는 순서가 바뀌어도 안 깨진다.
        */
       const pill = el.querySelector<HTMLElement>(".pin");
-      if (pill) pill.dataset.on = on;
+      if (pill) pill.setAttribute("data-on", on);
     }
     // ③ 스포트라이트 — 하나를 고르면 나머지가 물러난다. 켜는 자리는 지도 칸 하나다
     if (box.current) box.current.dataset.picked = selected ? "1" : "";
@@ -1407,7 +1376,7 @@ export function MapScreen() {
        */
       wantSchool.current = t.stdCode;
       if ((SIDOS as readonly string[]).includes(t.sido) && t.sido !== sido) {
-        setSido(t.sido as Sido);
+        changeSido(t.sido as Sido);
       } else if (pack) {
         // 같은 시·도이고 목록도 이미 있다 — 효과를 기다릴 것 없이 바로 연다
         const f = pack.schools.features.find((x) => x.properties.k === t.stdCode);
@@ -1421,7 +1390,7 @@ export function MapScreen() {
     }
     // 주거지는 고를 학교가 없다 — 좌표로만 옮긴다
     m?.morph(toLatLng([t.lng, t.lat]), Math.max(m.getZoom(), ZOOM_NAME));
-  }, [sido, pack]);
+  }, [sido, pack, changeSido]);
 
   /** 목록에서 묶음을 누르면 지도가 그리로 확대된다 — 지도 말풍선을 누른 것과 같다. */
   const goGroup = useCallback((name: string) => {
@@ -1430,19 +1399,6 @@ export function MapScreen() {
     const f = src?.features.find((c) => c.properties.g === name);
     if (m && f) m.morph(toLatLng(f.geometry.coordinates), Math.max(m.getZoom() + 2, ZOOM_SPLIT + 0.5));
   }, [pack, group]);
-
-  /** 화면 안 묶음 목록. 지도가 묶어 보여줄 때 왼쪽 칸도 같은 것을 보여준다. */
-  const groupsInView = useMemo(() => {
-    const m = map.current;
-    if (!m || !pack || !ready) return [];
-    const b = m.getBounds() as naver.maps.LatLngBounds;
-    return (group === "지원청" ? pack.offices : pack.cities).features
-      .filter((f) => {
-        const [lng, lat] = f.geometry.coordinates;
-        return lng >= b.west() && lng <= b.east() && lat >= b.south() && lat <= b.north();
-      })
-      .map((f) => f.properties);
-  }, [pack, ready, visible, grouped, group]);
 
   const found = useMemo(() => {
     const q = query.trim();
@@ -1500,7 +1456,7 @@ export function MapScreen() {
       cities: new Set(at(["cities"]).map((p) => p.c).filter((c): c is string => c != null)),
       classes: cls.length ? ([Math.min(...cls), Math.max(...cls)] as [number, number]) : null,
     };
-  }, [rows, except, sido]);
+  }, [rows, except]);
 
   /** 고를 거리 — **시·도 전체**에서 뽑는다. 좁히는 것은 `avail` 이 맡는다(위 주석) */
   const ko = (a: string, b: string) => a.localeCompare(b, "ko");
@@ -1589,6 +1545,10 @@ export function MapScreen() {
     );
   }, [officeChoices, pack, wide]);
 
+  const comparePins = useMemo(() => compare
+    .map((c) => pack?.schools.features.find((f) => f.properties.k === c)?.properties)
+    .filter((p): p is Pin => !!p), [compare, pack]);
+
   /**
    * ⛔ **훅이 다 끝난 뒤에 돌아선다.** 위로 올리면 안 된다 —
    *    `failed` 는 렌더 사이에 바뀌는 값이라(fetch 실패 · 지도 초기화 실패),
@@ -1656,7 +1616,7 @@ export function MapScreen() {
       sido={sido}
       zones={zones} grades={grades} offices={offices} cities={cities} classes={classes}
       officeChoices={officeChoices} cityChoices={cityChoices} avail={avail} shown={shown}
-      onSido={setSido}
+      onSido={changeSido}
       onZones={setZones} onGrades={setGrades} onOffices={setOffices} onCities={setCities} onClasses={setClasses}
       onShown={setShown}
     />
@@ -1847,25 +1807,20 @@ export function MapScreen() {
            학교가 그렇다(경기 목록을 열어 두고 인천 학교를 담아 둔 경우).
         ⛔ 하나도 못 찾으면 아예 안 연다. 빈 판을 띄우고 「없습니다」를 적지 않는다.
       */}
-      {compare.length > 0 && pack && (() => {
-        const pins = compare
-          .map((c) => pack.schools.features.find((f) => f.properties.k === c)?.properties)
-          .filter((p): p is Pin => !!p);
-        return pins.length ? (
-          <ComparePanel
-            pins={pins}
-            sido={sido}
-            onClose={() => setCompare([])}
-            onPick={(p) => {
-              // ⛔ 좌표는 말풍선 값(`Pin`)에 없다 — 꾸러미의 자리에서 찾는다
-              const f = pack.schools.features.find((x) => x.properties.k === p.k);
-              setCompare([]);
-              goTo(p);
-              if (f) map.current?.morph(toLatLng(f.geometry.coordinates), Math.max(map.current.getZoom(), ZOOM_NAME));
-            }}
-          />
-        ) : null;
-      })()}
+      {comparePins.length > 0 && pack && (
+        <ComparePanel
+          pins={comparePins}
+          sido={sido}
+          onClose={() => setCompare([])}
+          onPick={(p) => {
+            const f = pack.schools.features.find((x) => x.properties.k === p.k);
+            setCompare([]);
+            goTo(p);
+            const currentMap = map.current;
+            if (f && currentMap) currentMap.morph(toLatLng(f.geometry.coordinates), Math.max(currentMap.getZoom(), ZOOM_NAME));
+          }}
+        />
+      )}
 
       {/* 폰 — 목록은 아래 시트에 든다 */}
       {!wide && pack && (

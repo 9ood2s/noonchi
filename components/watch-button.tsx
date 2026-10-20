@@ -32,7 +32,7 @@ import { notifyWatch } from "@/lib/watch-signal";
  */
 const BONUS_UNIT = "점";
 
-export function WatchButton({ stdCode, name, sido }: { stdCode: string; name: string; sido: string }) {
+export function WatchButton({ stdCode, name }: { stdCode: string; name: string; sido: string }) {
   const [saved, setSaved] = useState<boolean | null>(null);
   const [asking, setAsking] = useState(false);
   const [considering, setConsidering] = useState(true);

@@ -10,11 +10,10 @@
  * ⛔ 서버 그림에는 안 넣는다 — `document` 가 없다. 붙은 뒤에 옮긴다.
  */
 
-import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useClientReady } from "@/lib/client-ready";
 
 export function Portal({ children }: { children: React.ReactNode }) {
-  const [on, setOn] = useState(false);
-  useEffect(() => setOn(true), []);
+  const on = useClientReady();
   return on ? createPortal(children, document.body) : null;
 }

@@ -11,7 +11,7 @@
  *    길이 둘 다 있으므로 `try/catch` 로 함께 잡는다.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Heart, LogOut, MapPin, RotateCw, School, Trash2, User, X } from "lucide-react";
 import { NeedLogin } from "@/components/need-login";
 import { NicknameField } from "@/components/nickname-field";
@@ -105,56 +105,66 @@ export function WatchPanel({ onPick, onCompare, onClose }: {
   /** 저장해 둔 통근 시간(출근) — 학교코드 → 분. 목록에서 미리 보인다 */
   const [mins, setMins] = useState<Record<string, number>>({});
 
-  const load = useCallback(async () => {
-    setState("받는중");
-    setError(null);
-    try {
-      const supabase = authClient();
-      const { data: auth } = await supabase.auth.getUser();
-      /**
-       * ⛔ **손님(익명)은 여기까지다** (2026-08-23 사장님 — 「관심목록을 즉석에서 하트를 눌러서
-       *    지도에서 확인할 수 있는 것은 가능하게 하되, **담아두고 계속 저장해서 보거나,
-       *    경로를 비교하거나 하는 것들은 로그인 후에** 가능하도록」 · §12-146).
-       *    하트는 그대로 눌린다 — 돈이 드는 일이 아니고, 눌러 본 사람이 로그인하는 순서가 맞다.
-       *    막는 것은 **모아 보는 것**이다. 비교 판도 여기서 들어가므로 같이 막힌다.
-       */
-      if (!auth?.user || auth.user.is_anonymous) {
-        setState("로그인필요");
-        return;
-      }
-      const { data, error: e1 } = await supabase
-        .from("watchlist")
-        .select("std_code, considering, reasons, bonus")
-        .order("created_at", { ascending: false });
-      if (e1) throw new Error(e1.message);
-      const list = (data ?? []) as Watch[];
-      setRows(list);
-      if (list.length) {
-        const { data: s, error: e2 } = await db
-          .from("personnel_areas")
-          /**
-           * ⛔ **컬럼 이름은 `school_name` 이다.** `name` 으로 부르면 통째로 실패해서
-           *    관심목록이 「목록을 받지 못했습니다」만 낸다(2026-08-23 운영에서 실제로 그랬다).
-           *    `이름:실제칸` 으로 별명을 달아 받는 쪽 코드는 그대로 둔다.
-           * ⚠️ 학교 표를 제대로 읽는 곳은 `lib/schools.ts` 하나다 — 여기와 아래 두 곳이
-           *    그것을 지나쳐 직접 부르고 있어서 컬럼이 바뀌면 여기만 조용히 깨진다.
-           */
-          .select("std_code, name:school_name, sido, city, office, area, area_grade")
-          .in("std_code", list.map((r) => r.std_code));
-        if (e2) throw new Error(e2.message);
-        setSchools(Object.fromEntries((s ?? []).map((x) => [x.std_code as string, x as SchoolRow])));
-      }
-      setState("됨");
-    } catch (e) {
-      // ⛔ 던지는 길도 잡는다. `if (error)` 만 쓰면 요청이 끊겼을 때 여기 닿지도 못한다
-      setError(e instanceof Error ? e.message : String(e));
-      setState("실패");
-    }
+  type Loaded = { member: false } | { member: true; rows: Watch[]; schools: Record<string, SchoolRow> };
+  const pendingLoad = useRef<AbortController | null>(null);
+  const load = useCallback(async (signal: AbortSignal): Promise<Loaded> => {
+    const supabase = authClient();
+    const { data: auth } = await supabase.auth.getUser();
+    if (signal.aborted) throw new DOMException("Request aborted", "AbortError");
+    // 손님은 담아 둔 목록과 비교를 모아 볼 수 없다. 별점·하트의 익명 사용과는 별개다.
+    if (!auth?.user || auth.user.is_anonymous) return { member: false };
+    const watchResponse = await supabase
+      .from("watchlist")
+      .select("std_code, considering, reasons, bonus")
+      .order("created_at", { ascending: false })
+      .abortSignal(signal);
+    if (watchResponse.error) throw new Error(watchResponse.error.message);
+    const rows = (watchResponse.data ?? []) as Watch[];
+    if (!rows.length) return { member: true, rows, schools: {} };
+    // 실제 컬럼은 school_name이다. UI에서 쓰는 name으로 별명을 붙인다.
+    const schoolResponse = await db
+      .from("personnel_areas")
+      .select("std_code, name:school_name, sido, city, office, area, area_grade")
+      .in("std_code", rows.map((r) => r.std_code))
+      .abortSignal(signal);
+    if (schoolResponse.error) throw new Error(schoolResponse.error.message);
+    return { member: true, rows, schools: Object.fromEntries((schoolResponse.data ?? []).map((x) => [x.std_code as string, x as SchoolRow])) };
+  }, []);
+
+  const receive = useCallback((result: Loaded) => {
+    if (!result.member) { setState("로그인필요"); return; }
+    setRows(result.rows);
+    setSchools(result.schools);
+    setState("됨");
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    const request = new AbortController();
+    pendingLoad.current = request;
+    load(request.signal).then((result) => {
+      if (!request.signal.aborted) receive(result);
+    }).catch((e: unknown) => {
+      if (request.signal.aborted) return;
+      setError(e instanceof Error ? e.message : String(e));
+      setState("실패");
+    });
+    return () => { request.abort(); pendingLoad.current?.abort(); };
+  }, [load, receive]);
+
+  const retry = () => {
+    pendingLoad.current?.abort();
+    const request = new AbortController();
+    pendingLoad.current = request;
+    setState("받는중");
+    setError(null);
+    load(request.signal).then((result) => {
+      if (!request.signal.aborted) receive(result);
+    }).catch((e: unknown) => {
+      if (request.signal.aborted) return;
+      setError(e instanceof Error ? e.message : String(e));
+      setState("실패");
+    });
+  };
 
   /**
    * 담은 학교들의 **저장해 둔 출근 시간**을 한 번에 읽는다.
@@ -236,7 +246,7 @@ export function WatchPanel({ onPick, onCompare, onClose }: {
           {error && <p className="mt-1 font-mono text-[11.5px] break-all text-ink3">{error}</p>}
           <button
             type="button"
-            onClick={() => void load()}
+            onClick={retry}
             className="mt-3 flex h-11 items-center gap-2 rounded-card bg-fill px-4 text-sm font-semibold active:opacity-70"
           >
             <RotateCw size={15} strokeWidth={2.2} aria-hidden />

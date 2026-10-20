@@ -26,15 +26,15 @@ import { AXES, ratingsOf, type AxisKey, type RatingAvg, type RatingByYear } from
 type Got = { avg: RatingAvg | null; byYear: RatingByYear[]; history: number; error: string | null };
 
 export function SchoolRatings({ stdCode, onSurvey }: { stdCode: string | null; onSurvey: (rated: number) => void }) {
-  const [got, setGot] = useState<Got | null>(null);
+  const [result, setResult] = useState<{ stdCode: string; got: Got } | null>(null);
+  const got = result?.stdCode === stdCode ? result.got : null;
   const [openYears, setOpenYears] = useState(false);
   useEffect(() => {
     if (!stdCode) return;
     let alive = true;
-    setGot(null);
     ratingsOf(stdCode)
-      .then((r) => alive && setGot(r))
-      .catch((e: unknown) => alive && setGot({ avg: null, byYear: [], history: 0, error: e instanceof Error ? e.message : "별점을 못 읽었습니다" }));
+      .then((r) => alive && setResult({ stdCode, got: r }))
+      .catch((e: unknown) => alive && setResult({ stdCode, got: { avg: null, byYear: [], history: 0, error: e instanceof Error ? e.message : "별점을 못 읽었습니다" } }));
     return () => { alive = false; };
   }, [stdCode]);
 

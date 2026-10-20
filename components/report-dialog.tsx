@@ -361,7 +361,7 @@ export function ReportDialog() {
       setFailed(`보내지 못했습니다 — ${e instanceof Error ? e.message : String(e)}`);
       toast("제보를 보내지 못했습니다", "fail");
     }
-  }, [body, kind, seed.stdCode, shots, memberOrLogin, close]);
+  }, [body, kind, seed.stdCode, seed.sido, shots, memberOrLogin, close]);
 
   if (!open) return null;
 

@@ -216,7 +216,8 @@ try {
     if (m.id && waiting.has(m.id)) {
       const { ok, no } = waiting.get(m.id);
       waiting.delete(m.id);
-      m.error ? no(new Error(m.error.message)) : ok(m.result);
+      if (m.error) no(new Error(m.error.message));
+      else ok(m.result);
       return;
     }
     // ⛔ **오류를 줍는다.** 화면이 멀쩡해 보여도 콘솔에 터진 것이 있으면 결함이다

@@ -22,13 +22,12 @@
  * ⛔ 실패를 화면이 버리지 않는다 — `{ok:false}` 와 **던지는 것** 둘 다 받는다(§11-2).
  */
 
-import { useCallback, useEffect, useState } from "react";
-import { ArrowUpDown, Car, MapPin, Star, Timer, TramFront, X } from "lucide-react";
-import { Portal } from "@/components/portal";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ArrowUpDown, Car, MapPin, Star, Timer, TramFront } from "lucide-react";
 import { NeedLogin } from "@/components/need-login";
 import { HomeDialog } from "./home-dialog";
 import { authClient } from "@/lib/auth/client";
-import { CHANGED, SLOTS, homePoint, outAt, readHome, writeHome, type Home } from "@/lib/home";
+import { CHANGED, homePoint, outAt, readHome, type Home } from "@/lib/home";
 import { ROUTE_DETAIL_CLOSE, showRoute, showRouteDetail } from "@/lib/route-line";
 import { TRANSIT_ON } from "@/lib/features";
 // ⛔ 수단 색·아이콘은 **한 곳**에 둔다. 옆 칸과 이 칸이 다른 색을 쓰면 눈이 못 잇는다(§11-3)
@@ -76,7 +75,7 @@ export function Commute({ stdCode }: { stdCode: string | null }) {
   const [routes, setRoutes] = useState<Route[] | null>(null);
   const [measuredAt, setMeasuredAt] = useState<string | null>(null);
   /** 지금 지도에 그려 놓은 경로. 누르면 바뀐다 */
-  const [picked, setPicked] = useState<string | null>(null);
+  const [pickedChoice, setPicked] = useState<string | null>(null);
   /** 펼쳐 놓은 상세보기 */
   const [openKey, setOpenKey] = useState<string | null>(null);
   /** 저장해 둔 경로들 — `수단/키` 꼴 */
@@ -105,7 +104,7 @@ export function Commute({ stdCode }: { stdCode: string | null }) {
   const [busy, setBusy] = useState(false);
   /** 재 둔 값이 있나 보는 중(조용하다). ⛔ 이 동안에는 「길찾기」 단추도 안 낸다 —
       냈다가 값이 있으면 눌러 보기도 전에 사라져 **한 번 번쩍인다** */
-  const [peek, setPeek] = useState(false);
+  const [peeked, setPeeked] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
   /**
@@ -127,55 +126,55 @@ export function Commute({ stdCode }: { stdCode: string | null }) {
 
   const at = home ? (dir === "퇴근" ? outAt(home) : home.at) : null;
 
-  const ask = useCallback(
-    async (cacheOnly: boolean) => {
-      if (!home || !stdCode) return;
-      // ⛔ 캐시만 보는 길과 실제로 재는 길은 **다른 깃발**을 든다. 막대는 뒤엣것에만 붙는다
-      const mark = cacheOnly ? setPeek : setBusy;
-      mark(true);
-      setFailed(null);
-      try {
-        const r = await fetch("/api/commute", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            lat: homePoint(home).lat,
-            lng: homePoint(home).lng,
-            stdCode,
-            at: dir === "퇴근" ? outAt(home) : home.at,
-            dir,
-            // ⛔ **고른 수단만 잰다.** 둘 다 부르면 자동차만 보려는 사람도 카카오 쿼터를 태운다 —
-            //    카카오는 하루 1,000건이고 네이버는 월 60,000건이라 두 벽의 높이가 다르다.
-            mode,
-            cacheOnly,
-          }),
-        });
-        const j = await r.json();
-        /**
-         * ⛔ **로그인이 필요하다는 답은 실패가 아니라 안내다**(2026-08-23 사장님 —
-         *    「길찾기는 로그인이 필요한 기능으로」). 빨간 실패 칸에 적으면 「고장」으로 읽힌다.
-         * ⛔ 문을 지키는 것은 서버다(`app/api/commute/route.ts`). 화면은 **미리 물어보고**
-         *    헛걸음을 줄일 뿐이라, 서버가 401 로 막는 이 길이 진짜 문이다.
-         */
-        if (j?.needLogin) {
-          setNeedLogin("길찾기");
-          return;
-        }
-        // 캐시만 봤는데 없으면 실패가 아니다 — 「아직 안 쟀다」다
-        if (j?.ok && !j.routes && cacheOnly) setRoutes(null);
-        else if (j?.ok) {
-          setRoutes(j.routes ?? []);
-          setMeasuredAt(j.measuredAt ?? null);
-        } else setFailed(j?.error ?? "재지 못했습니다");
-      } catch {
-        // ⛔ 요청이 끊기면 위에 닿지도 못한다. 여기서 잡는다(§11-2).
-        setFailed("재지 못했습니다");
-      } finally {
-        mark(false);
-      }
-    },
-    [home, stdCode, dir, mode],
-  );
+  const pending = useRef<AbortController | null>(null);
+  const [scope, setScope] = useState({ home, stdCode, dir, mode });
+  if (scope.home !== home || scope.stdCode !== stdCode || scope.dir !== dir || scope.mode !== mode) {
+    const changedRoute = scope.home !== home || scope.stdCode !== stdCode || scope.dir !== dir;
+    setScope({ home, stdCode, dir, mode });
+    setFailed(null);
+    setPicked(null);
+    setOpenKey(null);
+    setPeeked(false);
+    setBusy(false);
+    setNeedLogin(null);
+    if (changedRoute) { setRoutes(null); setMeasuredAt(null); }
+    if (scope.stdCode !== stdCode) setArmed(false);
+  }
+  const peek = !!home && !!stdCode && !peeked;
+
+  const readRoutes = useCallback(async (cacheOnly: boolean, signal: AbortSignal) => {
+    if (!home || !stdCode) return null;
+    try {
+      const r = await fetch("/api/commute", {
+        method: "POST",
+        signal,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          lat: homePoint(home).lat, lng: homePoint(home).lng, stdCode,
+          at: dir === "퇴근" ? outAt(home) : home.at, dir, mode, cacheOnly,
+        }),
+      });
+      return await r.json();
+    } catch (error) {
+      if (signal.aborted) throw error;
+      return { ok: false, error: "재지 못했습니다" };
+    }
+  }, [home, stdCode, dir, mode]);
+
+  const ask = useCallback(async (cacheOnly: boolean, signal: AbortSignal) => {
+    try {
+      const j = await readRoutes(cacheOnly, signal);
+      if (signal.aborted || !j) return;
+      if (j.needLogin) { setNeedLogin("길찾기"); return; }
+      if (j.ok && !j.routes && cacheOnly) setRoutes(null);
+      else if (j.ok) { setRoutes(j.routes ?? []); setMeasuredAt(j.measuredAt ?? null); }
+      else setFailed(j.error ?? "재지 못했습니다");
+    } catch {
+      if (!signal.aborted) setFailed("재지 못했습니다");
+    } finally {
+      if (!signal.aborted) { setPeeked(true); setBusy(false); }
+    }
+  }, [readRoutes]);
 
   /**
    * 「길찾기」를 눌렀을 때 — ⛔ **로그인부터 본다.** 서버도 막지만, 여기서 먼저 보면
@@ -186,10 +185,15 @@ export function Commute({ stdCode }: { stdCode: string | null }) {
    */
   const measure = useCallback(async () => {
     setNeedLogin(null);
+    setFailed(null);
+    pending.current?.abort();
+    const request = new AbortController();
+    pending.current = request;
     // 사람이 눌러서 재는 것이므로, 결과가 오면 첫 줄을 저절로 골라 그려도 된다
     setArmed(true);
     try {
       const { data } = await authClient().auth.getUser();
+      if (request.signal.aborted) return;
       if (!data?.user || data.user.is_anonymous) {
         setNeedLogin("길찾기");
         return;
@@ -197,30 +201,27 @@ export function Commute({ stdCode }: { stdCode: string | null }) {
     } catch {
       // 못 물어봤으면 그냥 보낸다 — 서버가 답한다
     }
-    void ask(false);
+    if (request.signal.aborted) return;
+    setBusy(true);
+    void ask(false, request.signal);
   }, [ask]);
 
-  // 학교·방향·수단을 갈아탈 때마다 **재 둔 값만** 본다. 바깥은 안 부른다.
+  // 학교·방향·수단을 바꿀 때는 캐시만 읽는다. 이전 요청은 새 선택에 결과를 쓰지 못한다.
   useEffect(() => {
-    setFailed(null);
-    setPicked(null);
-    setOpenKey(null);
-    if (!home || !stdCode) return;
-    void ask(true);
-  }, [home, stdCode, dir, mode, ask]);
-
-  // 학교·방향이 바뀌면 재 둔 목록도 버린다(수단만 바꾼 것은 목록을 남겨 둔다)
-  useEffect(() => {
-    setRoutes(null);
-  }, [home, stdCode, dir]);
-
-  /**
-   * ⛔ **학교를 새로 고르면 다시 잠근다.** 위의 「재 둔 값 읽기」 효과와 **갈라 두어야 한다** —
-   *    그쪽은 방향·수단이 바뀔 때도 도는데, 그때 잠그면 사람이 탭을 누른 것까지 잠겨 버린다.
-   */
-  useEffect(() => {
-    setArmed(false);
-  }, [stdCode]);
+    const request = new AbortController();
+    pending.current = request;
+    readRoutes(true, request.signal).then((j) => {
+      if (request.signal.aborted || !j) return;
+      if (j.ok) { setRoutes(j.routes ?? null); setMeasuredAt(j.measuredAt ?? null); }
+      else if (j.needLogin) setNeedLogin("길찾기");
+      else setFailed(j.error ?? "재지 못했습니다");
+    }).catch(() => {
+      if (!request.signal.aborted) setFailed("재지 못했습니다");
+    }).finally(() => {
+      if (!request.signal.aborted) setPeeked(true);
+    });
+    return () => { request.abort(); pending.current?.abort(); };
+  }, [readRoutes]);
 
   /** 저장해 둔 것을 읽어 온다. ⛔ 로그인 안 했으면 조용히 빈 채로 둔다 — 여기서 로그인을 강요하지 않는다 */
   useEffect(() => {
@@ -246,23 +247,12 @@ export function Commute({ stdCode }: { stdCode: string | null }) {
     };
   }, [stdCode, dir, at]);
 
-  /**
-   * ⛔ **목록이 서면 첫 줄을 저절로 고른다** (2026-08-23 사장님 — 「응 안나와~」).
-   *    이것이 「경로가 안 그려진다」의 남은 절반이었다. 목록은 떴는데 아무것도 안 골라진 상태라
-   *    지도에 그릴 것이 없었다. 특히 **수단 탭을 누르면 `picked` 를 비우므로**(자동차↔대중교통)
-   *    갈아탄 직후에는 늘 빈손이었다 — 카드를 한 번 더 눌러야 선이 나왔는데 그걸 알 길이 없다.
-   * ⛔ 네이버지도도 이렇게 한다 — 찾자마자 맨 위 경로가 골라진 채로 그려진다.
-   * ⛔ 쿼터가 더 들지 않는다. 그리는 것은 이미 받아 둔 좌표를 쓰는 것뿐이다.
-   * ⛔ 사람이 고른 것은 안 뒤집는다 — 고른 것이 지금 목록에 **없을 때만** 첫 줄로 옮긴다.
-   */
-  useEffect(() => {
-    // ⛔ 사람이 이 칸을 건드리기 전에는 안 고른다 — 학교만 눌렀는데 지도가 축소되던 자리다
-    if (!armed) return;
-    const now = (routes ?? []).filter((r) => r.mode === mode);
-    if (!now.length) return;
-    if (picked && now.some((r) => `${r.mode}/${r.key}` === picked)) return;
-    setPicked(`${now[0].mode}/${now[0].key}`);
-  }, [armed, routes, mode, picked]);
+  // 자동 선택은 표시할 목록에서 도출한다. 사람이 건드리기 전에는 지도에 선을 그리지 않는다.
+  const list = (routes ?? []).filter((r) => r.mode === mode);
+  const picked = armed && list.length
+    ? (pickedChoice && list.some((r) => `${r.mode}/${r.key}` === pickedChoice)
+      ? pickedChoice : `${list[0].mode}/${list[0].key}`)
+    : null;
 
   /** 고른 경로를 지도에 그리라고 알린다. ⛔ 닫으면 지운다 — 옛 선이 남의 학교 위에 남는다 */
   useEffect(() => {
@@ -358,7 +348,6 @@ export function Commute({ stdCode }: { stdCode: string | null }) {
 
   if (!ready || !stdCode) return null;
 
-  const list = (routes ?? []).filter((r) => r.mode === mode);
   const fastest = list[0]?.min ?? null;
 
 

@@ -174,7 +174,7 @@ Vercel 등에는 **별도 새 배포 프로젝트**를 만들고 본인 환경�
 - 지역별 계산: `lib/transfer.mjs`, `lib/transfer-incheon.mjs`, `docs/rules-*.md`
 - 학교 공개 범위: `lib/sido.mjs`, `lib/schools.ts`. 학교 목록을 열어도 계산 규칙이 자동으로 생기지는 않습니다.
 
-`npm run checks`·`npm run selftest:deployment`로 코드 검사를 실행합니다. 원문 판독까지 포함한 `npm run verify`에는 Poppler의 `pdftotext`와 빌드용 DB 설정이 추가로 필요합니다. 테스트 명령 통과는 외부 API 인증 성공을 뜻하지 않으므로 실제 지도·로그인·경로도 확인합니다.
+`npm run checks`·`npm run selftest:deployment`로 코드 검사를 실행합니다. `checks`에는 경고도 실패로 처리하는 전체 린트와 밝기 저장 실패 회귀 검사도 포함됩니다. [린트 정리 검증 기록](docs/LINT_CLEANUP.md)을 참고하세요. 원문 판독까지 포함한 `npm run verify`에는 Poppler의 `pdftotext`와 빌드용 DB 설정이 추가로 필요합니다. 테스트 명령 통과는 외부 API 인증 성공을 뜻하지 않으므로 실제 지도·로그인·경로도 확인합니다.
 
 ## 공개 전 검사
 

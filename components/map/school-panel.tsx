@@ -12,9 +12,7 @@
  */
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { ChevronDown, ChevronLeft, ExternalLink } from "lucide-react";
-import { areaLabel } from "@/lib/areas.mjs";
 import { sourceOf, YEAR, type Sido } from "@/lib/schools";
 import { pinPerClass, type GroupPin, type Meta, type Pin } from "@/lib/map";
 import { schoolFacts } from "@/lib/school-facts";

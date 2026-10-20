@@ -12,7 +12,7 @@
     "smoke": "node scripts/smoke.mjs",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings=0",
     "guard:ui": "node scripts/ui-guard.mjs",
     "guard:silent": "node scripts/silent-guard.mjs",
     "guard:touch": "node scripts/touch-reveal-guard.mjs",
@@ -45,9 +45,10 @@
     "match:g": "node scripts/match-neis.mjs 경기 2027",
     "match:i": "node scripts/assign-incheon-areas.mjs 2027",
     "match:all": "run-p --print-label --aggregate-output match:g match:i",
-    "checks": "run-p --print-label --aggregate-output selftest guard selftest:eslint-glob",
+    "checks": "run-p --print-label --aggregate-output selftest guard selftest:eslint-glob selftest:theme lint",
     "selftest:deployment": "node --test lib/deployment.test.mjs",
-    "selftest:eslint-glob": "node --test scripts/selftest-eslint-glob.mjs"
+    "selftest:eslint-glob": "node --test scripts/selftest-eslint-glob.mjs",
+    "selftest:theme": "node --test scripts/selftest-theme.mjs"
   },
   "engines": {
     "node": ">=22"

@@ -18,7 +18,7 @@
  * ⛔ 칸은 44px 이상이다. 손가락으로 눌러야 한다(§11-4).
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Check, Heart, LogIn, LogOut, Monitor, Moon, Sun, User, X } from "lucide-react";
 import { PANEL_EVENT, openPanel, type PanelKey } from "@/lib/panel";
@@ -26,7 +26,7 @@ import { openLogin } from "@/lib/login-gate";
 import { toast } from "@/lib/toast";
 import { authClient } from "@/lib/auth/client";
 import { carryOverWatchlist } from "@/lib/auth/carry";
-import { apply, readTheme, type Theme } from "@/components/theme-toggle";
+import { apply, readAppliedTheme, type Theme } from "@/components/theme-toggle";
 import { NoonchiLogo } from "@/components/brand/noonchi-logo";
 import { NoonchiWordmark } from "@/components/brand/noonchi-wordmark";
 
@@ -72,6 +72,14 @@ const THEMES: { key: Theme; label: string; Icon: typeof Monitor }[] = [
 /** 무엇이 펼쳐져 있나. `메뉴` 는 폰의 단추 하나, `밝기` 는 레일의 칸이다 */
 type Open = null | "메뉴" | "밝기";
 
+function subscribeTheme(notify: () => void) {
+  window.addEventListener("runaway:theme", notify);
+  return () => {
+    window.removeEventListener("runaway:theme", notify);
+  };
+}
+const serverTheme = (): Theme => "auto";
+
 export function AppRail() {
   const here = usePathname();
   const router = useRouter();
@@ -110,11 +118,10 @@ export function AppRail() {
       sub.subscription.unsubscribe();
     };
   }, []);
-  const [theme, setTheme] = useState<Theme>("auto");
+  const theme = useSyncExternalStore(subscribeTheme, readAppliedTheme, serverTheme);
   const [panel, setPanel] = useState<PanelKey>(null);
 
-  // ⛔ 첫 그림에서는 읽지 않는다. localStorage 는 브라우저에만 있어 서버 그림과 어긋난다.
-  useEffect(() => setTheme(readTheme()), []);
+  // 서버·hydration은 같은 snapshot, 이후에는 저장된 밝기와 변경 이벤트를 구독한다.
 
   // 지도가 칸을 닫으면(학교를 고르거나 X 를 누르면) 레일의 불도 꺼져야 한다
   useEffect(() => {
@@ -124,7 +131,11 @@ export function AppRail() {
   }, []);
 
   // 다른 화면으로 넘어가면 닫는다 — 열어 둔 채로 남으면 새 화면을 가린다
-  useEffect(() => setOpen(null), [here]);
+  const [previousPath, setPreviousPath] = useState(here);
+  if (previousPath !== here) {
+    setPreviousPath(here);
+    setOpen(null);
+  }
 
   /**
    * 칸을 연다. ⛔ **화면을 갈아치우지 않는다**(2026-08-23 사장님) —
@@ -280,7 +291,6 @@ export function AppRail() {
                     type="button"
                     aria-pressed={theme === key}
                     onClick={() => {
-                      setTheme(key);
                       apply(key);
                     }}
                     className="flex min-h-11 w-full items-center gap-2.5 rounded-chip px-3 text-left text-sm active:bg-fill"

@@ -33,7 +33,7 @@ type Look = "빔" | "모양틀림" | "확인중" | "쓸수있음" | "이미있�
 export function NicknameField() {
   const [now, setNow] = useState<string | null>(null);
   const [text, setText] = useState("");
-  const [look, setLook] = useState<Look>("빔");
+  const [checked, setChecked] = useState<{ want: string; look: Look; failed?: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -64,45 +64,29 @@ export function NicknameField() {
     };
   }, []);
 
-  /**
-   * 적는 대로 확인한다.
-   * ⛔ **글자마다 부르지 않는다** — 350ms 쉬면 그때 한 번 부른다.
-   * ⛔ 늦게 온 답이 최신 답을 덮지 않게 **버려진 확인은 결과를 안 쓴다**(`alive`).
-   */
+  const want = text.trim();
+  const look: Look = !want ? "빔" : want === now ? "지금이름" : !SHAPE.test(want)
+    ? "모양틀림" : checked?.want === want ? checked.look : "확인중";
+  const checkFailed = checked?.want === want ? checked.failed : null;
+
+  // 입력 상태는 렌더에서 파생한다. 실제 중복 확인만 350ms 쉬었다가 요청한다.
   useEffect(() => {
-    setSaved(false);
-    setFailed(null);
-    const want = text.trim();
-
-    if (!want) return setLook("빔");
-    if (want === now) return setLook("지금이름");
-    if (!SHAPE.test(want)) return setLook("모양틀림");
-
-    setLook("확인중");
+    if (!want || want === now || !SHAPE.test(want)) return;
     let alive = true;
     const timer = setTimeout(async () => {
       try {
         const { data, error } = await authClient().rpc("nickname_check", { want });
         if (!alive) return;
-        // ⛔ 확인이 실패하면 「쓸 수 있다」로 넘기지 않는다. 넘기면 저장에서 튕긴다
-        if (error) {
-          setLook("모양틀림");
-          setFailed(`이름을 확인하지 못했습니다. ${error.message}`);
-          return;
-        }
-        setLook(data === "됨" ? "쓸수있음" : data === "중복" ? "이미있음" : data === "예약" ? "잡아둔이름" : "모양틀림");
+        setChecked(error
+          ? { want, look: "모양틀림", failed: `이름을 확인하지 못했습니다. ${error.message}` }
+          : { want, look: data === "됨" ? "쓸수있음" : data === "중복" ? "이미있음" : data === "예약" ? "잡아둔이름" : "모양틀림" });
       } catch (e: unknown) {
         if (!alive) return;
-        setLook("모양틀림");
-        setFailed(`이름을 확인하지 못했습니다. ${e instanceof Error ? e.message : String(e)}`);
+        setChecked({ want, look: "모양틀림", failed: `이름을 확인하지 못했습니다. ${e instanceof Error ? e.message : String(e)}` });
       }
     }, 350);
-
-    return () => {
-      alive = false;
-      clearTimeout(timer);
-    };
-  }, [text, now]);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [want, now, text]);
 
   const save = async () => {
     const want = text.trim();
@@ -125,7 +109,7 @@ export function NicknameField() {
       if (error) {
         // ⛔ 표가 튕긴 까닭을 사람 말로 바꾼다. 못 알아보는 것은 그대로 보여준다
         if (error.code === "23505") {
-          setLook("이미있음");
+          setChecked({ want, look: "이미있음" });
           return setFailed("이미 쓰는 이름입니다");
         }
         // ⛔ 모양과 잡아 둔 이름이 같은 번호로 온다 — 어느 쪽인지는 서버 확인이 이미 말했다
@@ -138,7 +122,6 @@ export function NicknameField() {
       }
 
       setNow(want);
-      setLook("지금이름");
       setSaved(true);
       toast("이름을 저장했습니다");
     } catch (e: unknown) {
@@ -167,7 +150,12 @@ export function NicknameField() {
       <div className="mt-1.5 flex gap-1.5">
         <input
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+            setSaved(false);
+            setFailed(null);
+            setChecked(null);
+          }}
           placeholder={now ?? "이름을 정하십시오"}
           spellCheck={false}
           autoComplete="off"
@@ -198,9 +186,9 @@ export function NicknameField() {
         </p>
       )}
 
-      {failed && (
+      {(failed || checkFailed) && (
         <p role="alert" className="mt-1.5 text-[12px] text-up">
-          {failed}
+          {failed || checkFailed}
         </p>
       )}
 

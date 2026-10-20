@@ -10,26 +10,33 @@
  * ⛔ 서버로 뭘 보내기 전에는 손님 열쇠도 안 받는다. 그냥 둘러보는 사람에게 계정을 만들지 않는다.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { useSchoolIndex, type FoundSchool } from "@/lib/school-index";
 import { SchoolSurvey } from "@/components/school-survey";
 
 const SEEN = "runaway.onboarded";
 
+function subscribeSeen(notify: () => void) {
+  window.addEventListener("storage", notify);
+  return () => window.removeEventListener("storage", notify);
+}
+function readSeen() {
+  try { return !!localStorage.getItem(SEEN); }
+  catch { return true; }
+}
+const serverSeen = () => true;
+
 export function Onboarding() {
-  const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const seen = useSyncExternalStore(subscribeSeen, readSeen, serverSeen);
+  const [closed, setClosed] = useState(false);
+  const open = !seen && !closed;
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState<FoundSchool | null>(null);
 
-  useEffect(() => {
-    try {
-      if (localStorage.getItem(SEEN)) return;
-    } catch {
-      return; // 저장을 막아 둔 브라우저면 아예 안 띄운다 — 매번 뜨는 것보다 낫다
-    }
-    setOpen(true);
-  }, []);
+
 
   /**
    * 학교 목록은 **열었을 때만** 받는다. 찾는 자리는 `lib/school-index.ts` 한 곳이다 —
@@ -41,11 +48,11 @@ export function Onboarding() {
     try {
       localStorage.setItem(SEEN, "1");
     } catch {}
-    setOpen(false);
+    setClosed(true);
     // ⛔ 인천 학교를 남겼는데 지도가 경기로 열리면 방금 한 일이 안 보인다.
     //    고른 시·도로 지도를 연다.
-    if (picked) location.href = `/map?sido=${encodeURIComponent(picked.sido)}`;
-  }, [picked]);
+    if (picked) router.push(`/map?sido=${encodeURIComponent(picked.sido)}`);
+  }, [picked, router]);
 
   if (!open) return null;
 

@@ -56,3 +56,9 @@ export function readTheme(): Theme {
   } catch {}
   return "light";
 }
+
+/** The current document remains authoritative when storing a preference fails. */
+export function readAppliedTheme(): Theme {
+  const theme = document.documentElement.dataset.theme;
+  return theme === "dark" || theme === "light" ? theme : "auto";
+}
